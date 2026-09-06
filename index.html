@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#6e1d35" />
+    <title>瓶詰め・入荷記録</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">WINE OPERATIONS</p>
+        <h1 id="page-title">瓶詰め・入荷記録</h1>
+        <p>本数または備考を入力すると、Slackと在庫管理シートへ同時に記録します。</p>
+        <a class="editor-link" href="/admin">編集者設定</a>
+      </section>
+
+      <div class="mode-tabs" role="tablist" aria-label="記録の種類">
+        <button id="bottling-tab" class="mode-tab active" type="button" role="tab" aria-selected="true" aria-controls="bottling-panel">瓶詰めを記録</button>
+        <button id="incoming-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="incoming-panel">入荷を記録</button>
+      </div>
+
+      <form id="bottling-form" novalidate>
+        <div id="bottling-panel" role="tabpanel" aria-labelledby="bottling-tab">
+          <section class="card details-card" aria-labelledby="details-title">
+            <h2 id="details-title">1. 日付・記入者を入力</h2>
+            <div class="field-grid"><label class="date-field" for="record-date"><span>作業日</span><input id="record-date" name="date" type="date" required /></label><label class="date-field" for="bottling-recorder"><span>記入者名</span><select id="bottling-recorder" required><option value="">選択してください</option></select></label></div>
+          </section>
+          <section class="card" aria-labelledby="wine-title">
+            <div class="section-heading"><div><h2 id="wine-title">2. 使ったワインを入力</h2><p>本数を入力した行だけ送信されます。</p></div><div class="multiplier">1本 = 小瓶 7.5本</div></div>
+            <div id="volume-groups" class="volume-groups"></div>
+          </section>
+          <section class="summary" aria-live="polite"><div><span>使用ワイン 合計</span><strong><output id="total-bottles">0</output><small>本</small></strong></div><div><span>できた小瓶 合計</span><strong><output id="total-small-bottles">0</output><small>本</small></strong></div></section>
+          <section class="card notes-card"><h2>3. 備考（あれば入力）</h2><label for="bottling-notes">破損・不良ボトルなどがあれば記入してください。本数入力がなくても、備考だけで記録できます。</label><textarea id="bottling-notes" rows="4" maxlength="1000" placeholder="例：vol.3-2を1本割ってしまったため廃棄"></textarea></section>
+          <button class="submit-button" type="submit"><span class="button-label">瓶詰めを記録する</span><span class="button-subtitle">送信前に内容を確認できます</span></button>
+          <section class="card history-card"><div class="section-heading"><div><h2>直近2日間の瓶詰め履歴</h2><p>送信済みの記録を表示します。</p></div><button class="history-refresh" data-history="bottling" type="button">更新</button></div><div id="bottling-history" class="history-list"><p class="history-empty">履歴を読み込み中です。</p></div></section>
+        </div>
+      </form>
+
+      <form id="incoming-form" hidden novalidate>
+        <div id="incoming-panel" role="tabpanel" aria-labelledby="incoming-tab">
+          <section class="card details-card"><h2>1. 記入日・記入者を入力</h2><div class="field-grid"><label class="date-field" for="incoming-date"><span>記入日</span><input id="incoming-date" type="date" required /></label><label class="date-field" for="incoming-recorder"><span>記入者名</span><select id="incoming-recorder" required><option value="">選択してください</option></select></label></div></section>
+          <section class="card"><div class="section-heading"><div><h2>2. 入荷したワインを入力</h2><p>本数を入力した銘柄だけ記録します。銘柄名の下にインポーターを表示しています。</p></div></div><div id="incoming-volume-groups" class="volume-groups"></div></section>
+          <section class="summary incoming-summary" aria-live="polite"><div><span>入荷本数 合計</span><strong><output id="incoming-total-bottles">0</output><small>本</small></strong></div><div><span>入荷銘柄数</span><strong><output id="incoming-total-wines">0</output><small>銘柄</small></strong></div></section>
+          <section class="card incoming-card"><label>仕入先／納品元（任意）<input id="incoming-supplier" type="text" maxlength="180" placeholder="例：〇〇ワイン" /></label></section>
+          <section class="card notes-card"><h2>3. 備考（あれば入力）</h2><label for="incoming-notes">ロット情報・破損などがあれば記入してください</label><textarea id="incoming-notes" rows="4" maxlength="1000" placeholder="例：ラベル不良が1本あり"></textarea></section>
+          <button class="submit-button" type="submit"><span class="button-label">入荷を記録する</span><span class="button-subtitle">送信前に内容を確認できます</span></button>
+          <section class="card history-card"><div class="section-heading"><div><h2>直近2日間の入荷履歴</h2><p>送信済みの記録を表示します。</p></div><button class="history-refresh" data-history="incoming" type="button">更新</button></div><div id="incoming-history" class="history-list"><p class="history-empty">履歴を読み込み中です。</p></div></section>
+        </div>
+      </form>
+
+      <div id="form-error" class="form-error" hidden role="alert"></div>
+    </main>
+
+    <dialog id="confirm-dialog" aria-labelledby="dialog-title"><div class="dialog-content"><p class="eyebrow">CONFIRM</p><h2 id="dialog-title">この内容で送りますか？</h2><div id="report-preview" class="report-preview"></div><div class="dialog-actions"><button id="back-button" class="secondary-button" type="button">戻って修正</button><button id="confirm-button" class="primary-button" type="button">記録を送信する</button></div></div></dialog>
+    <dialog id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-content"><p class="eyebrow">DELETE RECORD</p><h2 id="delete-title">この履歴を削除しますか？</h2><p id="delete-preview" class="delete-preview"></p><p class="delete-warning">Google Sheetの記録も削除されます。この操作は取り消せません。</p><div class="dialog-actions"><button id="delete-cancel" class="secondary-button" type="button">戻る</button><button id="delete-confirm" class="danger-button" type="button">削除する</button></div></div></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

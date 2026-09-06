@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>編集者設定 | 瓶詰め記録</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body>
+    <main class="page-shell admin-shell">
+      <a class="back-link" href="/">← 入力画面へ戻る</a>
+      <section class="hero admin-hero">
+        <p class="eyebrow">EDITOR ONLY</p>
+        <h1>入力項目の設定</h1>
+        <p>Vol.の追加・削除・名称変更、ワイン名・インポーター名の編集は、保存すると全員の入力画面に反映されます。</p>
+      </section>
+      <form id="admin-login" class="admin-form" novalidate>
+        <section class="card login-card">
+          <h2>編集者ログイン</h2>
+          <label for="admin-key">編集用パスワード</label>
+          <input id="admin-key" type="password" autocomplete="current-password" required placeholder="編集用パスワードを入力" />
+          <button class="submit-button login-button" type="submit"><span class="button-label">設定画面を開く</span></button>
+        </section>
+        <div id="admin-error" class="form-error" hidden role="alert"></div>
+      </form>
+      <form id="admin-form" class="admin-form" novalidate hidden>
+        <section class="card">
+          <div class="field-grid">
+            <label>画面タイトル<input id="app-title" type="text" maxlength="60" required /></label>
+            <label>小瓶換算（ワイン1本あたり）<input id="factor" type="number" min="0.01" max="1000" step="0.01" required /></label>
+          </div>
+        </section>
+        <section class="card">
+          <label class="recorder-names-label" for="recorder-names">記入者名の候補（1行に1名）<textarea id="recorder-names" rows="6" maxlength="6100" required></textarea></label>
+        </section>
+        <section id="editor-groups" class="editor-groups"></section>
+        <button id="add-group" class="add-button" type="button">＋ Vol.グループを追加</button>
+        <button id="save-button" class="submit-button" type="submit"><span class="button-label">変更を保存して全員に反映</span><span class="button-subtitle">保存後、入力画面を開き直すと最新設定になります</span></button>
+      </form>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./admin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "bottling-record-tool",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.3.0"
+  }
+}
