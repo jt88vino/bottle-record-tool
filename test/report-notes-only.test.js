@@ -10,7 +10,10 @@ require.cache[configStorePath] = {
     loadConfig: async () => ({
       title: '瓶詰め記録',
       smallBottleFactor: 7.5,
-      groups: [{ rows: [{ id: 'vol-1', label: 'vol.1-1', wineName: 'テストワイン', importerName: '' }] }],
+      groups: [{ rows: [
+        { id: 'vol-1', label: 'vol.1-1', wineName: 'テストワイン', importerName: '' },
+        { id: 'vol-13', label: 'vol.13-1', wineName: '対象外ワイン', importerName: '' },
+      ] }],
     }),
   },
 };
@@ -89,5 +92,36 @@ test('瓶詰め記録の入力条件', async (t) => {
     const sheetPayload = JSON.parse(calls[0].options.body);
     assert.equal(sheetPayload.items[0].bottles, 2);
     assert.equal(sheetPayload.items[0].smallBottles, 15);
+  });
+
+  await t.test('Vol.1〜12の販売出荷をスプレッドシートとSlackへ送れる', async () => {
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (url.includes('/sheets')) return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      return { ok: true, status: 200 };
+    };
+    const response = makeResponse();
+
+    await reportHandler({ method: 'POST', body: { type: 'shipping', date: '2026-09-09', recorderName: '田中', notes: '注文番号A-001', items: [{ id: 'vol-1', bottles: 3 }] } }, response);
+
+    assert.equal(response.statusCode, 200);
+    const sheetPayload = JSON.parse(calls[0].options.body);
+    assert.equal(sheetPayload.type, 'shipping');
+    assert.equal(sheetPayload.items[0].bottles, 3);
+    const slackPayload = JSON.parse(calls[1].options.body);
+    assert.match(slackPayload.text, /ボトル販売出荷記録/);
+    assert.match(slackPayload.text, /合計\*: 3本/);
+  });
+
+  await t.test('Vol.13以降は販売出荷として送れない', async () => {
+    let fetchCount = 0;
+    global.fetch = async () => { fetchCount += 1; };
+    const response = makeResponse();
+
+    await reportHandler({ method: 'POST', body: { type: 'shipping', date: '2026-09-09', recorderName: '田中', notes: '', items: [{ id: 'vol-13', bottles: 1 }] } }, response);
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(fetchCount, 0);
   });
 });
