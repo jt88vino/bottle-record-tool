@@ -1,6 +1,7 @@
 const SETTINGS = {
   bottlingSheet: '瓶詰め記録',
   incomingSheet: '入荷記録',
+  shippingSheet: 'ボトル販売出荷',
   masterSheet: '商品マスタ・在庫',
   firstDataRow: 4,
   historyDays: 2,
@@ -23,7 +24,7 @@ function doPost(e) {
       deleteHistory_(payload.kind, Number(payload.rowNumber));
       return json_({ ok: true });
     }
-    if (payload.type === 'bottling' || payload.type === 'incoming') {
+    if (payload.type === 'bottling' || payload.type === 'incoming' || payload.type === 'shipping') {
       appendReport_(payload);
       return json_({ ok: true });
     }
@@ -49,8 +50,12 @@ function spreadsheet_() {
 }
 
 function sheetFor_(kind) {
-  if (kind !== 'bottling' && kind !== 'incoming') throw new Error('Invalid record type.');
-  const name = kind === 'bottling' ? SETTINGS.bottlingSheet : SETTINGS.incomingSheet;
+  if (kind !== 'bottling' && kind !== 'incoming' && kind !== 'shipping') throw new Error('Invalid record type.');
+  const name = kind === 'bottling'
+    ? SETTINGS.bottlingSheet
+    : kind === 'incoming'
+      ? SETTINGS.incomingSheet
+      : SETTINGS.shippingSheet;
   const sheet = spreadsheet_().getSheetByName(name);
   if (!sheet) throw new Error(name + ' sheet was not found.');
   return sheet;
@@ -76,6 +81,9 @@ function appendReport_(payload) {
     if (kind === 'incoming') {
       return [timestamp, date, program, wineName, bottles, supplier, notes, recorder, clean_(item.itemNote)];
     }
+    if (kind === 'shipping') {
+      return [timestamp, date, program, wineName, bottles, notes, recorder];
+    }
     return [timestamp, date, program, wineName, bottles, number_(item.smallBottles), notes, recorder];
   });
 
@@ -91,7 +99,7 @@ function history_(kind) {
   const lastRow = sheet.getLastRow();
   if (lastRow < SETTINGS.firstDataRow) return [];
 
-  const width = kind === 'incoming' ? 9 : 8;
+  const width = kind === 'incoming' ? 9 : kind === 'shipping' ? 7 : 8;
   const values = sheet.getRange(SETTINGS.firstDataRow, 1, lastRow - SETTINGS.firstDataRow + 1, width).getValues();
   const cutoff = new Date();
   cutoff.setHours(0, 0, 0, 0);
@@ -106,13 +114,13 @@ function history_(kind) {
       program: clean_(row[2]),
       wineName: clean_(row[3]),
       bottles: number_(row[4]),
-      notes: clean_(row[6]),
-      recorderName: clean_(row[7])
+      notes: clean_(kind === 'shipping' ? row[5] : row[6]),
+      recorderName: clean_(kind === 'shipping' ? row[6] : row[7])
     };
     if (kind === 'incoming') {
       common.supplier = clean_(row[5]);
       common.itemNote = clean_(row[8]);
-    } else {
+    } else if (kind === 'bottling') {
       common.smallBottles = number_(row[5]);
     }
     return common;
@@ -143,13 +151,14 @@ function ensureMasterRows_(items) {
     const program = clean_(item.program);
     if (!program || known[program]) return;
     const row = Math.max(sheet.getLastRow() + 1, SETTINGS.firstDataRow);
-    sheet.getRange(row, 1, 1, 6).setValues([[
+    sheet.getRange(row, 1, 1, 7).setValues([[
       program,
       clean_(item.wineName),
       0,
       "=SUMIF('入荷記録'!$C$4:$C$1000,A" + row + ",'入荷記録'!$E$4:$E$1000)",
       "=SUMIF('瓶詰め記録'!$C$4:$C$1000,A" + row + ",'瓶詰め記録'!$E$4:$E$1000)",
-      '=C' + row + '+D' + row + '-E' + row
+      "=SUMIF('ボトル販売出荷'!$C$4:$C$1000,A" + row + ",'ボトル販売出荷'!$E$4:$E$1000)",
+      '=C' + row + '+D' + row + '-E' + row + '-F' + row
     ]]);
     known[program] = true;
   });
