@@ -29,7 +29,7 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 10px; font-size: clamp(30px, 8vw, 42px); letter-spacing: .04em; }
 .hero > p:last-child { margin-bottom: 0; color: var(--muted); font-size: 15px; }
 .editor-link { display: inline-block; margin-top: 15px; color: var(--wine); font-size: 13px; font-weight: 800; }
-.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 16px; padding: 4px; border-radius: 13px; background: #eaded9; }
+.mode-tabs { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 16px; padding: 4px; border-radius: 13px; background: #eaded9; }
 .mode-tab { min-height: 45px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 800; }
 .mode-tab.active { color: white; background: var(--wine); box-shadow: 0 4px 12px rgba(75, 16, 35, .18); }
 
