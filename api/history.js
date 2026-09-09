@@ -4,7 +4,7 @@ module.exports = async (request, response) => {
     return response.status(405).json({ error: 'GETまたはDELETEで送信してください。' });
   }
   const kind = request.query.type;
-  if (!['bottling', 'incoming'].includes(kind)) return response.status(400).json({ error: '記録種別が正しくありません。' });
+  if (!['bottling', 'incoming', 'shipping'].includes(kind)) return response.status(400).json({ error: '記録種別が正しくありません。' });
   const url = process.env.GOOGLE_APPS_SCRIPT_URL;
   const secret = process.env.GOOGLE_SHEETS_SYNC_SECRET;
   if (!url || !secret) return response.status(503).json({ error: 'スプレッドシート連携の設定がまだ完了していません。' });

@@ -16,11 +16,11 @@ module.exports = async (request, response) => {
   }
 
   const { type = 'bottling', date, items, notes = '', supplier = '', recorderName = '' } = request.body || {};
-  if (!['bottling', 'incoming'].includes(type)) return badRequest(response, '記録種別が正しくありません。');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return badRequest(response, type === 'incoming' ? '記入日が正しくありません。' : '作業日が正しくありません。');
+  if (!['bottling', 'incoming', 'shipping'].includes(type)) return badRequest(response, '記録種別が正しくありません。');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return badRequest(response, type === 'shipping' ? '出荷日が正しくありません。' : type === 'incoming' ? '記入日が正しくありません。' : '作業日が正しくありません。');
   if (typeof notes !== 'string' || notes.length > 1000) return badRequest(response, '備考は1,000文字以内で入力してください。');
   const notesOnly = type === 'bottling' && Array.isArray(items) && items.length === 0 && notes.trim().length > 0;
-  if (!Array.isArray(items) || items.length > MAX_ITEMS || (items.length < 1 && !notesOnly)) return badRequest(response, type === 'bottling' ? '使用本数または備考を入力してください。' : 'ワインの入力内容が正しくありません。');
+  if (!Array.isArray(items) || items.length > MAX_ITEMS || (items.length < 1 && !notesOnly)) return badRequest(response, type === 'bottling' ? '使用本数または備考を入力してください。' : type === 'shipping' ? '出荷したワインと本数を入力してください。' : 'ワインの入力内容が正しくありません。');
   if (typeof supplier !== 'string' || supplier.length > 180) return badRequest(response, '仕入先は180文字以内で入力してください。');
   if (typeof recorderName !== 'string' || !recorderName.trim() || recorderName.trim().length > 60) return badRequest(response, '記入者名を1〜60文字で入力してください。');
 
@@ -32,6 +32,7 @@ module.exports = async (request, response) => {
     const itemNote = typeof item.itemNote === 'string' ? item.itemNote.trim() : '';
     if (itemNote.length > 1000) return null;
     const row = itemLabels.get(item.id);
+    if (type === 'shipping' && !/^vol\.(?:[1-9]|1[0-2])(?:-|$)/i.test(row.label)) return null;
     return { program: row.label, wineName: row.wineName || '（ワイン名未設定）', importerName: row.importerName || '', bottles: item.bottles, smallBottles: item.bottles * config.smallBottleFactor, itemNote };
   });
   if (validItems.some((item) => item === null)) return badRequest(response, '本数または銘柄別備考の入力内容が正しくありません。');
@@ -40,11 +41,15 @@ module.exports = async (request, response) => {
   const itemLines = validItems
     .map((item) => type === 'incoming'
       ? `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本${item.itemNote ? `\n  備考: ${item.itemNote}` : ''}`
-      : `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`)
+      : type === 'shipping'
+        ? `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本`
+        : `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`)
     .join('\n') || '• 本数入力なし（備考のみの記録）';
   const message = type === 'incoming'
     ? `*入荷記録*\n*記入日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*入荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${supplier.trim() ? `\n*仕入先*: ${supplier.trim()}` : ''}${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
-    : `*${config.title}*\n*作業日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*使用ワイン*\n${itemLines}\n\n*合計*: 使用 ${formatNumber(totalBottles)}本 / 小瓶 ${formatNumber(totalBottles * config.smallBottleFactor)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`;
+    : type === 'shipping'
+      ? `*ボトル販売出荷記録*\n*出荷日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*出荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
+      : `*${config.title}*\n*作業日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*使用ワイン*\n${itemLines}\n\n*合計*: 使用 ${formatNumber(totalBottles)}本 / 小瓶 ${formatNumber(totalBottles * config.smallBottleFactor)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`;
 
   const sheetsUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
   const sheetsSecret = process.env.GOOGLE_SHEETS_SYNC_SECRET;
