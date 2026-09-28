@@ -23,7 +23,7 @@ button, input, textarea, select { font: inherit; }
 
 .page-shell { width: min(100% - 28px, 760px); margin: 0 auto; padding: 44px 0 64px; }
 
-.app-switch { display: flex; justify-content: center; gap: 4px; width: max-content; max-width: 100%; margin: 0 auto 6px; padding: 4px; border-radius: 999px; background: #eaded9; }
+.app-switch { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; width: max-content; max-width: 100%; margin: 0 auto 6px; padding: 4px; border-radius: 999px; background: #eaded9; }
 .app-switch-item { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 16px; border-radius: 999px; color: var(--muted); font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .app-switch-item.is-current { color: white; background: var(--wine); box-shadow: 0 4px 12px rgba(75, 16, 35, .18); }
 a.app-switch-item:hover, a.app-switch-item:focus-visible { color: var(--wine); background: rgba(255, 255, 255, .75); }
@@ -118,6 +118,8 @@ dialog::backdrop { background: rgba(36, 23, 25, .52); }
 
 @media (max-width: 560px) {
   .page-shell { width: min(100% - 20px, 760px); padding-top: 24px; }
+  .app-switch { gap: 2px; }
+  .app-switch-item { min-height: 34px; padding: 0 11px; font-size: 12px; }
   .card { padding: 17px; border-radius: 14px; }
   .details-card { align-items: stretch; display: grid; }
   .field-grid { grid-template-columns: 1fr; }
