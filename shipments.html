@@ -32,6 +32,17 @@
       </div>
       <div id="ship-error" class="form-error" role="alert" hidden></div>
 
+      <section id="stock-card" class="card stock-card" aria-labelledby="stock-title" hidden>
+        <div class="stock-head">
+          <h2 id="stock-title">🔔 発注アラート</h2>
+          <p id="stock-meta" class="stock-meta"></p>
+        </div>
+        <div id="stock-counts" class="stock-counts"></div>
+        <div id="stock-groups" class="stock-groups"></div>
+        <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中の発注リストをコピー</button>
+      </section>
+      <div id="stock-error" class="form-error" role="alert" hidden></div>
+
       <section id="ship-summary" class="summary ship-summary" aria-live="polite" hidden>
         <div><span>これからの1週間</span><strong><output id="sum-week">0</output><small>件</small></strong><span id="sum-week-sub" class="peak-count"></span></div>
         <div><span>必要なワイン（1週間）</span><strong><output id="sum-week-bottles">0</output><small>本</small></strong></div>
@@ -58,6 +69,9 @@
           <li>週は今日（日本時間）から7日ずつ区切っています。日付が変わると自動でずれます。月は出荷日の月で合計しています。</li>
           <li>ワインの本数は、<span class="rule-factor">7.5</span>件でワイン1本を使うとして、銘柄ごとに「件数 ÷ <span class="rule-factor">7.5</span>」を切り上げています。各Volには4銘柄入るので、そのVolの必要本数は1銘柄あたりの本数 × 4 です。</li>
           <li>切り上げは週ごと・月ごとに行うため、週の本数を足すと月の本数より少し多くなることがあります。発注には月の本数を使ってください。</li>
+          <li>発注アラートの在庫は「WTワイン_在庫管理_新デザイン案」の「プログラム在庫」タブ（瓶詰め記録と自動連動）から読んでいます。出荷予定を日付順に足していき、在庫でまかなえなくなる日を「足りなくなる日」、その2日前（土日なら金曜日）を「発注期限」にしています。</li>
+          <li>発注目安は、今後の出荷分をまかなったうえで6本残る本数です。在庫が6本以下の銘柄は、出荷予定がなくても知らせます。</li>
+          <li>瓶詰め済みでまだ出荷していない小瓶は、在庫に数えていません。</li>
           <li>祝日は考慮していません。</li>
         </ul>
       </section>

@@ -133,6 +133,88 @@
     }).join('') : '<p class="history-empty">これからの出荷予定はありません。</p>';
   }
 
+  // ── 発注アラート ─────────────────────────────
+  const LEVELS = {
+    urgent: { label: '至急', title: '至急：発注期限が明日まで', open: true },
+    soon: { label: '今週中', title: '今週中に発注', open: true },
+    later: { label: 'その後', title: '今後、発注が必要', open: false },
+    low: { label: '残り少ない', title: `在庫が少ない（出荷分は足りている）`, open: true },
+    ok: { label: '問題なし', title: '問題なし', open: false },
+  };
+
+  function wineRow(item) {
+    const name = item.name || '（銘柄未設定）';
+    const lines = [];
+    if (item.runsOutOn) {
+      lines.push(`<span>${md(item.runsOutOn)}(${esc(item.runsOutWeekday)})に足りなくなる</span><span class="deadline">発注期限 ${md(item.orderBy)}(${esc(item.orderByWeekday)})</span>`);
+    } else if (!item.shipments) {
+      lines.push('<span>今後の出荷予定はありません</span>');
+    } else {
+      lines.push('<span>今後の出荷分は足りています</span>');
+    }
+    const figures = [
+      `<span>在庫 <b>${num(item.stock)}</b>本</span>`,
+      `<span>今後の必要 <b>${num(item.need)}</b>本</span>`,
+      item.shortage ? `<span class="short">不足 <b>${num(item.shortage)}</b>本</span>` : '',
+      item.suggested && item.level !== 'ok' ? `<span class="suggest">発注目安 <b>${num(item.suggested)}</b>本</span>` : '',
+    ].filter(Boolean).join('');
+    return `<li class="stock-item level-${item.level}">
+      <div class="stock-name"><span class="stock-id">${esc(item.id)}</span>${esc(name)}</div>
+      <div class="stock-when">${lines.join('')}</div>
+      <div class="stock-figures">${figures}</div>
+      ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    </li>`;
+  }
+
+  function renderStock() {
+    const card = $('stock-card');
+    $('stock-error').hidden = true;
+    if (!data.stock) {
+      card.hidden = true;
+      if (data.stockError) { $('stock-error').textContent = data.stockError; $('stock-error').hidden = false; }
+      return;
+    }
+    const s = data.stock;
+    $('stock-meta').innerHTML = `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
+    $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
+      .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
+    $('stock-groups').innerHTML = Object.keys(LEVELS).map((level) => {
+      const items = s.items.filter((i) => i.level === level);
+      if (!items.length) return '';
+      const meta = LEVELS[level];
+      return `<details class="stock-group level-${level}"${meta.open ? ' open' : ''}>
+        <summary><span class="stock-badge level-${level}">${meta.label}</span>${esc(meta.title)}<b>${num(items.length)}銘柄</b></summary>
+        <ul class="stock-list">${items.map(wineRow).join('')}</ul>
+      </details>`;
+    }).join('');
+    $('stock-copy').hidden = !(s.counts.urgent || s.counts.soon);
+    card.hidden = false;
+  }
+
+  function stockOrderText() {
+    const s = data.stock;
+    const lines = [`発注リスト（${md(s.today)}時点・届くまで${s.leadDays}日で計算）`, '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。', ''];
+    ['urgent', 'soon'].forEach((level) => {
+      const items = s.items.filter((i) => i.level === level);
+      if (!items.length) return;
+      lines.push(`■ ${LEVELS[level].title}`);
+      items.forEach((i) => lines.push(`  ${i.id} ${i.name || '（銘柄未設定）'}：発注目安 ${i.suggested}本（在庫${i.stock}本・不足${i.shortage}本・期限${md(i.orderBy)}）`));
+      lines.push('');
+    });
+    return lines.join('\n').trim();
+  }
+
+  async function copyText(text, message) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = text; document.body.appendChild(area); area.select();
+      document.execCommand('copy'); area.remove();
+    }
+    toast(message);
+  }
+
   // ── 月ごとの合計と発注本数 ─────────────────────────
   function renderMonths() {
     $('ship-months').innerHTML = data.months.map((month) => {
@@ -177,15 +259,7 @@
   async function copyOrder(key) {
     const month = data.months.find((m) => m.key === key);
     if (!month) return;
-    const text = orderText(month);
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const area = document.createElement('textarea');
-      area.value = text; document.body.appendChild(area); area.select();
-      document.execCommand('copy'); area.remove();
-    }
-    toast(`${monthLabel(key)}の発注リストをコピーしました`);
+    await copyText(orderText(month), `${monthLabel(key)}の発注リストをコピーしました`);
   }
 
   function toast(message) {
@@ -222,6 +296,7 @@
       $('ship-source').href = result.source;
       $('ship-source').hidden = false;
       renderSummary();
+      renderStock();
       renderWeeks();
       renderDays();
       renderMonths();
@@ -248,6 +323,7 @@
     if (button) copyOrder(button.dataset.month);
   });
   $('ship-reload').addEventListener('click', load);
+  $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
   setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); load(); } }, 60 * 1000);
