@@ -62,7 +62,7 @@ test('必要な列がなければエラーにする', () => {
   assert.throws(() => rowsFromCsv('日付,回数\n2026/10/07,1\n'), /列が見つかりません/);
 });
 
-const { bottlesPerWine, weekStartKey, winesFromConfig } = require('../lib/shipment-schedule');
+const { bottlesPerWine, winesFromConfig } = require('../lib/shipment-schedule');
 
 test('ワインの本数は 件数÷7.5 を銘柄ごとに切り上げ', () => {
   assert.equal(bottlesPerWine(0, 7.5), 0);
@@ -74,12 +74,6 @@ test('ワインの本数は 件数÷7.5 を銘柄ごとに切り上げ', () => {
   assert.equal(bottlesPerWine(150, 7.5), 20);
 });
 
-test('週は月曜はじまり', () => {
-  assert.equal(weekStartKey('2026-10-02'), '2026-09-28'); // 金
-  assert.equal(weekStartKey('2026-10-05'), '2026-10-05'); // 月
-  assert.equal(weekStartKey('2026-10-09'), '2026-10-05'); // 金
-  assert.equal(weekStartKey('2026-10-11'), '2026-10-05'); // 日（念のため）
-});
 
 test('設定の Vol 名と PRO を、スケジュールのプラン名に対応づける', () => {
   const wines = winesFromConfig({ groups: [
@@ -153,4 +147,9 @@ test('「これからの1週間」は今日を起点に毎日ずれる。今日�
   const done = buildSchedule(rowsFromCsv(csv), { factor: 7.5, today: '2026-12-01' });
   assert.deepEqual(done.weeks, []);
   assert.equal(done.past.total, 17);
+});
+
+test('Vol.1 の見込みを月ごとの発注本数用に返す', () => {
+  const r = buildSchedule(rowsFromCsv('次回配送予定日,定期回数\n2026/10/05,1\n'), { factor: 7.5, forecasts: { 'Vol.1': 130 } });
+  assert.deepEqual(r.forecasts.map((p) => [p.label, p.count, p.perWine, p.bottles, p.forecast]), [['Vol.1', 130, 18, 72, true]]);
 });

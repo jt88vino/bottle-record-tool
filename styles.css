@@ -57,6 +57,7 @@ summary::-webkit-details-marker { display: none; }
 summary::after { content: "+"; color: var(--wine); font-size: 22px; font-weight: 400; }
 details[open] summary::after { content: "−"; }
 .volume-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 12px 13px; }
+.wine-input.is-target { outline: 3px solid var(--accent); outline-offset: 2px; background: #fff8ec; }
 .wine-input { display: grid; grid-template-columns: 1fr 86px; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid #f0eae5; border-radius: 9px; background: #fffdfb; }
 .wine-input label { display: grid; gap: 3px; font-size: 14px; font-weight: 750; }
 .wine-input label small { color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.35; }

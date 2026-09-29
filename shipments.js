@@ -22,7 +22,7 @@
   // プランごとの 件数・1銘柄あたり・必要本数 の表
   function planTable(plans) {
     if (!plans.length) return '<p class="history-empty">この期間の出荷はありません。</p>';
-    const rows = plans.map((p) => `<tr class="${p.label === 'PRO' ? 'is-pro' : ''}">
+    const rows = plans.map((p) => `<tr class="${p.label === 'PRO' ? 'is-pro' : ''}${p.forecast ? ' is-forecast' : ''}">
         <th scope="row">${esc(p.label)}</th>
         <td>${num(p.count)}<small>件</small></td>
         <td title="${num(p.count)} ÷ ${data.factor} = ${p.exact}">${num(p.perWine)}<small>本</small></td>
@@ -52,7 +52,10 @@
     $('sum-week-sub').textContent = first ? range(first.start, first.end) : '予定はありません';
     $('sum-week-bottles').textContent = num(first ? first.bottles : 0);
     $('sum-total').textContent = num(data.total);
-    $('sum-bottles').textContent = num(data.bottles);
+    const forecastBottles = (data.forecasts || []).reduce((sum, p) => sum + p.bottles, 0);
+    $('sum-bottles').textContent = num(data.bottles + forecastBottles);
+    $('sum-bottles-sub').textContent = forecastBottles
+      ? `${(data.forecasts || []).map((p) => `${p.label}見込み ${num(p.bottles)}本`).join('・')}を含む` : '';
     document.querySelectorAll('.rule-factor').forEach((el) => { el.textContent = String(data.factor); });
     $('ship-summary').hidden = false;
     $('ship-view-tabs').hidden = false;
@@ -134,6 +137,10 @@
   }
 
   // ── 発注アラート ─────────────────────────────
+  const OPEN_KEY = 'shipments.stockOpen';
+  function readOpen() { try { return window.localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } }
+  function saveOpen(open) { try { window.localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* 保存できなくても表示には影響しない */ } }
+
   const LEVELS = {
     urgent: { label: '至急', title: '至急：発注期限が明日まで', open: true },
     soon: { label: '今週中', title: '今週中に発注', open: true },
@@ -146,7 +153,9 @@
     const name = item.name || '（銘柄未設定）';
     const lines = [];
     if (item.runsOutOn) {
-      lines.push(`<span>${md(item.runsOutOn)}(${esc(item.runsOutWeekday)})に足りなくなる</span><span class="deadline">発注期限 ${md(item.orderBy)}(${esc(item.orderByWeekday)})</span>`);
+      const arrive = item.arriveBy && item.arriveBy !== item.runsOutOn
+        ? `<span>到着期限 ${md(item.arriveBy)}(${esc(item.arriveByWeekday)})</span>` : '';
+      lines.push(`<span>${md(item.runsOutOn)}(${esc(item.runsOutWeekday)})${item.forecast ? 'ごろ' : ''}に足りなくなる</span>${arrive}<span class="deadline">発注期限 ${md(item.orderBy)}(${esc(item.orderByWeekday)})</span>`);
     } else if (!item.shipments) {
       lines.push('<span>今後の出荷予定はありません</span>');
     } else {
@@ -154,12 +163,12 @@
     }
     const figures = [
       `<span>在庫 <b>${num(item.stock)}</b>本</span>`,
-      `<span>今後の必要 <b>${num(item.need)}</b>本</span>`,
+      `<span>${item.forecast ? `月${num(item.forecast)}件の見込みで必要` : '今後の必要'} <b>${num(item.need)}</b>本</span>`,
       item.shortage ? `<span class="short">不足 <b>${num(item.shortage)}</b>本</span>` : '',
       item.suggested && item.level !== 'ok' ? `<span class="suggest">発注目安 <b>${num(item.suggested)}</b>本</span>` : '',
     ].filter(Boolean).join('');
     return `<li class="stock-item level-${item.level}">
-      <div class="stock-name"><span class="stock-id">${esc(item.id)}</span>${esc(name)}</div>
+      <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span>${item.level !== 'ok' ? `<a class="stock-record" href="/?tab=incoming&amp;wine=${encodeURIComponent(item.id)}">入荷を記録 →</a>` : ''}</div>
       <div class="stock-when">${lines.join('')}</div>
       <div class="stock-figures">${figures}</div>
       ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
@@ -175,7 +184,10 @@
       return;
     }
     const s = data.stock;
-    $('stock-meta').innerHTML = `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
+    card.open = readOpen();
+    const loadedAt = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(data.fetchedAt));
+    $('stock-meta').innerHTML = `在庫は ${loadedAt} に読み込み（入荷を記録すると自動で読み直します）・`
+      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
     $('stock-groups').innerHTML = Object.keys(LEVELS).map((level) => {
@@ -217,8 +229,11 @@
 
   // ── 月ごとの合計と発注本数 ─────────────────────────
   function renderMonths() {
+    const forecasts = data.forecasts || [];
     $('ship-months').innerHTML = data.months.map((month) => {
-      const wines = month.plans.map((p) => `
+      const plans = [...forecasts.map((p) => ({ ...p, label: `${p.label}（見込み）` })), ...month.plans];
+      const forecastBottles = forecasts.reduce((sum, p) => sum + p.bottles, 0);
+      const wines = plans.map((p) => `
         <div class="wine-group">
           <h4>${esc(p.label)}<span>${num(p.count)}件 ・ 1銘柄 ${num(p.perWine)}本</span></h4>
           <ul>${p.wines.map((w) => `<li><span class="wine-id">${esc(w.id)}</span><span class="wine-name">${esc(w.name || '（銘柄未設定）')}</span><b>${num(w.bottles)}本</b></li>`).join('')}</ul>
@@ -229,10 +244,10 @@
           <p class="month-range">出荷日 ${range(month.from, month.to)}・${num(month.days.length)}日</p>
         </div>
         <div class="month-kpis">
-          <div><span>出荷件数</span><strong>${num(month.total)}<small>件</small></strong></div>
-          <div><span>必要なワイン</span><strong>${num(month.bottles)}<small>本</small></strong></div>
+          <div><span>出荷件数（定期便）</span><strong>${num(month.total)}<small>件</small></strong></div>
+          <div><span>必要なワイン</span><strong>${num(month.bottles + forecastBottles)}<small>本</small></strong>${forecastBottles ? `<em>Vol.1見込み ${num(forecastBottles)}本を含む</em>` : ''}</div>
         </div>
-        ${planTable(month.plans)}
+        ${planTable(plans)}
         <details class="wine-details">
           <summary>銘柄ごとの本数を見る（発注用）</summary>
           <div class="wine-groups">${wines}</div>
@@ -245,11 +260,11 @@
   function orderText(month) {
     const lines = [
       `${monthLabel(month.key)} 発注本数（${data.factor}件でワイン1本として計算）`,
-      `出荷件数 ${num(month.total)}件 ／ 必要なワイン ${num(month.bottles)}本`,
+      `出荷件数 ${num(month.total)}件 ／ 必要なワイン ${num(month.bottles + (data.forecasts || []).reduce((sum, p) => sum + p.bottles, 0))}本（Vol.1は月${num(((data.forecasts || [])[0] || {}).count || 0)}件の見込み）`,
       '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。',
       '',
     ];
-    month.plans.forEach((p) => {
+    [...(data.forecasts || []).map((p) => ({ ...p, label: `${p.label}（見込み）` })), ...month.plans].forEach((p) => {
       lines.push(`■ ${p.label}（${num(p.count)}件・1銘柄 ${num(p.perWine)}本 × ${p.wineCount}銘柄 = ${num(p.bottles)}本）`);
       p.wines.forEach((w) => lines.push(`  ${w.id} ${w.name || '（銘柄未設定）'}：${num(w.bottles)}本`));
     });
@@ -325,11 +340,34 @@
   $('ship-reload').addEventListener('click', load);
   $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
+  $('stock-card').addEventListener('toggle', () => saveOpen($('stock-card').open));
+
+  // 入荷などを記録すると、瓶詰め記録の画面が stockChangedAt を書き換える → 在庫を読み直す
+  let loading = false;
+  let lastLoaded = 0;
+  async function reload() {
+    if (loading) return;
+    loading = true;
+    try { await load(); lastLoaded = Date.now(); } finally { loading = false; }
+  }
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'stockChangedAt') {
+      reload();
+      // 在庫シートへの反映に少し時間がかかるので、1分後と3分後にもう一度読む
+      setTimeout(reload, 60 * 1000);
+      setTimeout(reload, 3 * 60 * 1000);
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastLoaded > 60 * 1000) reload();
+  });
+  setInterval(() => { if (document.visibilityState === 'visible') reload(); }, 5 * 60 * 1000);
+
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
   setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); load(); } }, 60 * 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && data && todayKey() !== data.today) { openWeeks.clear(); load(); }
   });
 
-  load();
+  reload();
 })();

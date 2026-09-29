@@ -16,6 +16,9 @@ const STOCK_URL = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/export?for
 
 const LEAD_DAYS = 2; // 発注してから届くまで
 const LOW_STOCK = 6; // この本数以下なら知らせる
+const PRO_ARRIVE_DAYS_BEFORE = 14; // PRO は出荷日（27日）の2週間前までに届いている必要がある
+// 定期レポートに出てこないプランの、月あたりの出荷の見込み（Vol.1 は新規のお客様向けで月平均130件）
+const FORECASTS = { 'Vol.1': 130 };
 
 async function fetchCsv(url) {
   const response = await fetch(url, { redirect: 'follow' });
@@ -43,13 +46,14 @@ module.exports = async (request, response) => {
   try {
     const [scheduleCsv, stockResult, settings] = await Promise.all([
       fetchCsv(SHEET_URL),
-      fetchCsv(STOCK_URL).then((text) => ({ text }), (error) => ({ error })),
+      // 入荷を記録した直後でも最新の在庫を読めるよう、毎回別のURLにしてキャッシュを避ける
+      fetchCsv(`${STOCK_URL}&t=${Date.now()}`).then((text) => ({ text }), (error) => ({ error })),
       loadWineSettings(),
     ]);
     // 「これからの1週間」の起点は日本時間の今日。確認用に ?today=YYYY-MM-DD で差し替えられる
     const requested = String((request.query && request.query.today) || '');
     const today = /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : todayInJapan();
-    const schedule = buildSchedule(rowsFromCsv(scheduleCsv), { ...settings, today });
+    const schedule = buildSchedule(rowsFromCsv(scheduleCsv), { ...settings, today, forecasts: FORECASTS });
 
     // 在庫が読めなくても、出荷予定だけは表示する
     let stock = null;
@@ -58,6 +62,7 @@ module.exports = async (request, response) => {
       if (stockResult.error) throw stockResult.error;
       stock = buildStockAlerts(schedule.days, stockFromCsv(stockResult.text), {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
+        proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
       });
       stock.source = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/edit#gid=${STOCK_GID}`;
     } catch (error) {

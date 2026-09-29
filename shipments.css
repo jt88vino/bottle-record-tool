@@ -44,7 +44,6 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 
 .ship-list { display: grid; gap: 12px; margin-bottom: 16px; }
 .ship-day { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .96); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 6px 22px var(--ship-shadow); }
-.ship-day.is-past { opacity: .5; }
 .ship-day.is-peak { border-color: var(--accent); box-shadow: 0 6px 22px rgba(227, 162, 59, .28); }
 .ship-date { text-align: center; }
 .ship-date .md { display: block; font-size: 24px; font-weight: 900; letter-spacing: .02em; }
@@ -56,7 +55,6 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .ship-body .plan-chip b { font-size: 13px; }
 .ship-notes { margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12.5px; font-weight: 700; line-height: 1.6; }
 .ship-notes li::before { content: '↳ '; color: var(--accent); }
-.ship-past-label { margin-left: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
 
 /* 週ごと：最初の1週間はカード、その先はトグル */
 .ship-weeks { display: grid; gap: 10px; margin-bottom: 18px; }
@@ -104,6 +102,8 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .month-kpis strong { color: var(--wine); font-size: 28px; font-variant-numeric: tabular-nums; }
 .month-kpis > div:last-child strong { color: #9a6410; }
 .month-kpis small { margin-left: 3px; font-size: 13px; }
+.month-kpis em { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; font-style: normal; font-weight: 700; }
+.plan-table tr.is-forecast th, .plan-table tr.is-forecast td { color: var(--muted); font-style: italic; }
 .wine-details { margin-top: 14px; }
 .wine-details > summary { cursor: pointer; color: var(--wine); font-weight: 800; font-size: 14px; }
 .wine-groups { display: grid; gap: 12px; margin-top: 12px; }
@@ -116,13 +116,20 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .copy-order { margin-top: 14px; }
 
 /* 発注アラート */
-.stock-card { border: 2px solid #f0c8c0; }
-.stock-head h2 { margin-bottom: 4px; }
+.stock-card { padding: 0; border: 2px solid #f0c8c0; }
+.stock-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 16px 20px; cursor: pointer; list-style: none; }
+.stock-summary::-webkit-details-marker { display: none; }
+.stock-summary::after { content: '▶'; margin-left: auto; color: var(--muted); font-size: 11px; transition: transform .15s; }
+.stock-card[open] > .stock-summary::after { transform: rotate(90deg); }
+.stock-title { font-size: 18px; font-weight: 900; }
+.stock-summary .stock-counts { margin: 0; }
+.stock-body { padding: 0 20px 20px; }
 .stock-meta { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; font-weight: 700; line-height: 1.6; }
+.stock-record { margin-left: auto; color: var(--wine); font-size: 12.5px; font-weight: 800; white-space: nowrap; }
 .stock-meta a { color: var(--wine); }
-.stock-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.stock-count { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 800; }
-.stock-count b { font-size: 18px; }
+.stock-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.stock-count { display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800; }
+.stock-count b { font-size: 16px; }
 .stock-count.is-zero { opacity: .45; }
 .level-urgent.stock-count, .stock-badge.level-urgent { color: white; background: #b42318; }
 .level-soon.stock-count, .stock-badge.level-soon { color: #7a2e0e; background: #fcd9bd; }
@@ -139,7 +146,7 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .stock-badge { flex: none; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; }
 .stock-list { margin: 0; padding: 0 14px 6px; list-style: none; }
 .stock-item { padding: 10px 0; border-top: 1px dashed var(--line); }
-.stock-name { font-size: 14px; font-weight: 800; line-height: 1.45; }
+.stock-name { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 800; line-height: 1.45; }
 .stock-id { display: inline-block; margin-right: 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .stock-when { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .stock-when .deadline { color: #b42318; font-weight: 900; }
@@ -165,6 +172,9 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
   .plan-table { font-size: 13px; }
   .plan-table th, .plan-table td { padding: 7px 6px; }
   .wine-group li { grid-template-columns: 1fr auto; }
+  .stock-summary { padding: 14px; }
+  .stock-body { padding: 0 14px 14px; }
+  .stock-name { flex-wrap: wrap; }
   .wine-id { grid-column: 1 / -1; font-size: 11px; }
   .ship-date .md { font-size: 20px; }
   .ship-date .total { font-size: 22px; }

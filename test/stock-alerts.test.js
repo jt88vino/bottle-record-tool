@@ -120,3 +120,57 @@ test('発注期限が1週間より先なら「その後」', () => {
   assert.equal(r['vol.2-1'].orderBy, '2026-10-16'); // 10/18(日) → 10/16(金)
   assert.equal(r['vol.2-1'].level, 'later');
 });
+
+test('PRO は出荷日（27日）の2週間前までに届くよう、到着期限と発注期限を早める', () => {
+  const series = [{ date: '2026-10-27', plans: [{ label: 'PRO', count: 948 }] }]; // 1銘柄 127本必要
+  const run = (today) => byId(buildStockAlerts(series, [{ id: 'Pro.1', name: '', stock: 108, price: null }], { ...opts, today }));
+  const r = run('2026-09-29');
+  assert.equal(r['Pro.1'].runsOutOn, '2026-10-27');
+  assert.equal(r['Pro.1'].arriveBy, '2026-10-13');   // 10/27(火) の14日前 = 10/13(火)
+  assert.equal(r['Pro.1'].orderBy, '2026-10-09');    // 到着期限の2日前 10/11(日) → 10/9(金)
+  assert.equal(r['Pro.1'].orderByWeekday, '金');
+  assert.equal(r['Pro.1'].level, 'later');           // 9/29 から見て期限は6日より先
+  assert.equal(run('2026-10-05')['Pro.1'].level, 'soon');   // 期限まで4日
+  assert.equal(run('2026-10-08')['Pro.1'].level, 'urgent'); // 期限が明日
+  assert.match(run('2026-10-12')['Pro.1'].notes.join(), /期限を過ぎています/);
+  assert.match(r['Pro.1'].notes.join(), /14日前/);
+});
+
+test('到着期限が土日なら直前の金曜日（PRO）。Vol は到着期限＝足りなくなる日', () => {
+  // 11/27(金) 出荷の PRO → 14日前 11/13(金) → 発注 11/11(水)
+  const pro = byId(buildStockAlerts([{ date: '2026-11-27', plans: [{ label: 'PRO', count: 10 }] }],
+    [{ id: 'Pro.2', name: '', stock: 0, price: null }], { ...opts, today: '2026-10-01' }));
+  assert.equal(pro['Pro.2'].arriveBy, '2026-11-13');
+  assert.equal(pro['Pro.2'].orderBy, '2026-11-11');
+  // 12/25(金) 出荷の PRO（12/27 が日曜のため前倒し済み）→ 14日前 12/11(金) → 発注 12/9(水)
+  const dec = byId(buildStockAlerts([{ date: '2026-12-25', plans: [{ label: 'PRO', count: 10 }] }],
+    [{ id: 'Pro.3', name: '', stock: 0, price: null }], { ...opts, today: '2026-10-01' }));
+  assert.equal(dec['Pro.3'].arriveBy, '2026-12-11');
+  assert.equal(dec['Pro.3'].orderBy, '2026-12-09');
+  // 14日前が日曜になる例：10/30(金) 出荷 → 10/16(金)。10/28(水) 出荷 → 10/14(水)。10/26(月) 出荷 → 10/12(月)
+  const vol = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 2, price: null }], opts));
+  assert.equal(vol['vol.2-1'].arriveBy, vol['vol.2-1'].runsOutOn);
+});
+
+test('Vol.1 は月平均130件の見込みで判定する（30日で1銘柄18本）', () => {
+  const r = byId(buildStockAlerts(days, [
+    { id: 'vol.1-1', name: 'M', stock: 6, price: null },
+    { id: 'vol.1-2', name: 'G', stock: 0, price: null },
+    { id: 'vol.1-3', name: 'C', stock: 30, price: null },
+  ], { ...opts, forecasts: { 'Vol.1': 130 } }));
+  assert.equal(r['vol.1-1'].forecast, 130);
+  assert.equal(r['vol.1-1'].shipments, 130);
+  assert.equal(r['vol.1-1'].need, 18);          // 130 ÷ 7.5 = 17.3 → 18
+  assert.equal(r['vol.1-1'].shortage, 12);
+  assert.ok(r['vol.1-1'].runsOutOn);             // 45件分（6本×7.5）を超える日がある
+  assert.equal(r['vol.1-2'].level, 'urgent');     // 在庫0 → 最初の平日に足りなくなる
+  assert.equal(r['vol.1-2'].runsOutOn, '2026-10-01');
+  assert.equal(r['vol.1-3'].level, 'ok');         // 30本あれば足りて、6本超
+  assert.match(r['vol.1-1'].notes.join(), /月平均130件/);
+});
+
+test('実際の出荷予定があるプランには見込みを使わない', () => {
+  const r = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 20, price: null }], { ...opts, forecasts: { 'Vol.2': 999 } }));
+  assert.equal(r['vol.2-1'].forecast, null);
+  assert.equal(r['vol.2-1'].shipments, 32);
+});

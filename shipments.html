@@ -32,22 +32,24 @@
       </div>
       <div id="ship-error" class="form-error" role="alert" hidden></div>
 
-      <section id="stock-card" class="card stock-card" aria-labelledby="stock-title" hidden>
-        <div class="stock-head">
-          <h2 id="stock-title">🔔 発注アラート</h2>
+      <details id="stock-card" class="card stock-card" hidden>
+        <summary class="stock-summary">
+          <span class="stock-title">🔔 発注アラート</span>
+          <span id="stock-counts" class="stock-counts"></span>
+        </summary>
+        <div class="stock-body">
           <p id="stock-meta" class="stock-meta"></p>
+          <div id="stock-groups" class="stock-groups"></div>
+          <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中の発注リストをコピー</button>
         </div>
-        <div id="stock-counts" class="stock-counts"></div>
-        <div id="stock-groups" class="stock-groups"></div>
-        <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中の発注リストをコピー</button>
-      </section>
+      </details>
       <div id="stock-error" class="form-error" role="alert" hidden></div>
 
       <section id="ship-summary" class="summary ship-summary" aria-live="polite" hidden>
         <div><span>これからの1週間</span><strong><output id="sum-week">0</output><small>件</small></strong><span id="sum-week-sub" class="peak-count"></span></div>
         <div><span>必要なワイン（1週間）</span><strong><output id="sum-week-bottles">0</output><small>本</small></strong></div>
         <div><span>出荷件数 合計</span><strong><output id="sum-total">0</output><small>件</small></strong></div>
-        <div><span>必要なワイン 合計</span><strong><output id="sum-bottles">0</output><small>本</small></strong></div>
+        <div><span>必要なワイン 合計</span><strong><output id="sum-bottles">0</output><small>本</small></strong><span id="sum-bottles-sub" class="peak-count"></span></div>
       </section>
 
       <div class="ship-view-tabs" role="tablist" aria-label="表示の切り替え" hidden id="ship-view-tabs">
@@ -63,13 +65,16 @@
       <section class="card ship-rules">
         <h2>計算のしかた</h2>
         <ul>
-          <li>定期回数はひとつ先の数字で表示しています（1回目 → Vol.2、2回目 → Vol.3）。</li>
-          <li>Vol.2〜Vol.12 は配送予定日に出荷します。土日にあたる場合は、直前の金曜日に出荷します。</li>
-          <li>13回目以降は PRO として、配送予定日の月の27日にまとめて出荷します。27日が土日なら直前の金曜日です。</li>
+          <li>定期回数はひとつ先の数字で表示しています（定期回数1 → Vol.2、定期回数2 → Vol.3 … 定期回数11 → Vol.12）。</li>
+          <li>Vol. は配送予定日に出荷します。土日にあたる場合は、直前の金曜日に出荷します。</li>
+          <li>定期回数12以上（ひとつ先の数字が13以上）は PRO として、配送予定日の月の27日にまとめて出荷します。27日が土日なら直前の金曜日です。</li>
           <li>週は今日（日本時間）から7日ずつ区切っています。日付が変わると自動でずれます。月は出荷日の月で合計しています。</li>
           <li>ワインの本数は、<span class="rule-factor">7.5</span>件でワイン1本を使うとして、銘柄ごとに「件数 ÷ <span class="rule-factor">7.5</span>」を切り上げています。各Volには4銘柄入るので、そのVolの必要本数は1銘柄あたりの本数 × 4 です。</li>
           <li>切り上げは週ごと・月ごとに行うため、週の本数を足すと月の本数より少し多くなることがあります。発注には月の本数を使ってください。</li>
+          <li>発注アラートは在庫シートと連動しています。入荷を記録すると在庫が増え、足りる本数になった銘柄はアラートから消えます（入荷が一部だけなら、不足の本数が減って残ります）。在庫シートへの反映に数分かかることがあります。</li>
           <li>発注アラートの在庫は「WTワイン_在庫管理_新デザイン案」の「プログラム在庫」タブ（瓶詰め記録と自動連動）から読んでいます。出荷予定を日付順に足していき、在庫でまかなえなくなる日を「足りなくなる日」、その2日前（土日なら金曜日）を「発注期限」にしています。</li>
+          <li>PRO は、出荷日（27日）の2週間前までに必ず届くよう、到着期限を出荷日の14日前、発注期限をその2日前（土日なら金曜日）にしています。</li>
+          <li>Vol.1 は定期レポートに出てこないため、月平均130件を平日に均等にならした見込みで、月の発注本数と発注アラートに入れています（1銘柄あたり月18本）。週ごと・日付ごとの件数には入れていません。</li>
           <li>発注目安は、今後の出荷分をまかなったうえで6本残る本数です。在庫が6本以下の銘柄は、出荷予定がなくても知らせます。</li>
           <li>瓶詰め済みでまだ出荷していない小瓶は、在庫に数えていません。</li>
           <li>祝日は考慮していません。</li>
