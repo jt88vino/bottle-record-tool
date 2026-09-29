@@ -1,0 +1,60 @@
+/* 今後の出荷件数ページ */
+.ship-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.ship-status { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; }
+.ship-toolbar-actions { display: flex; align-items: center; gap: 12px; }
+.ship-source { color: var(--wine); font-size: 13px; font-weight: 800; }
+
+.ship-summary { grid-template-columns: repeat(4, 1fr); margin-top: 0; }
+.ship-summary strong { font-size: 26px; }
+.ship-summary > div:last-child strong { font-size: 22px; white-space: nowrap; }
+.ship-summary .peak-count { margin: 4px 0 0; color: white; font-size: 14px; font-weight: 800; }
+
+.plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border-radius: 999px; background: #f7eeec; color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.plan-chip b { color: var(--wine); font-size: 15px; }
+.plan-chip.is-pro { color: white; background: var(--wine-dark); }
+.plan-chip.is-pro b { color: var(--accent); }
+
+.ship-view-tabs { display: grid; grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; padding: 4px; border-radius: 13px; background: #eaded9; }
+.ship-view-tab { min-height: 40px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 800; }
+.ship-view-tab.active { color: white; background: var(--wine); box-shadow: 0 4px 12px rgba(75, 16, 35, .18); }
+
+.ship-list { display: grid; gap: 12px; margin-bottom: 16px; }
+.ship-day { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 18px; border-radius: 16px; background: rgba(255, 253, 249, .95); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 6px 22px rgba(75, 16, 35, .06); }
+.ship-day.is-past { opacity: .5; }
+.ship-day.is-peak { border-color: var(--accent); box-shadow: 0 6px 22px rgba(219, 168, 92, .25); }
+.ship-date { text-align: center; }
+.ship-date .md { display: block; font-size: 24px; font-weight: 900; letter-spacing: .02em; }
+.ship-date .wd { display: inline-block; margin-top: 3px; padding: 2px 9px; border-radius: 999px; background: #f7e9e8; color: var(--wine); font-size: 12px; font-weight: 800; }
+.ship-date .total { display: block; margin-top: 10px; color: var(--wine); font-size: 26px; font-weight: 900; line-height: 1; }
+.ship-date .total small { margin-left: 2px; font-size: 12px; }
+.ship-body .plan-chips { gap: 6px; }
+.ship-body .plan-chip { padding: 4px 9px; font-size: 12px; }
+.ship-body .plan-chip b { font-size: 13px; }
+.ship-notes { margin: 10px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 12.5px; font-weight: 700; line-height: 1.6; }
+.ship-notes li::before { content: '↳ '; color: var(--accent); }
+.ship-past-label { margin-left: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
+
+.ship-table-card { padding: 0; overflow: hidden; }
+.ship-table-scroll { overflow-x: auto; }
+.ship-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ship-table th, .ship-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ship-table thead th { position: sticky; top: 0; color: white; background: var(--wine); font-weight: 800; }
+.ship-table th:first-child, .ship-table td:first-child { position: sticky; left: 0; text-align: left; background: var(--paper); font-weight: 800; }
+.ship-table thead th:first-child { background: var(--wine-dark); }
+.ship-table td.zero { color: #cfc4bf; }
+.ship-table td.total { color: var(--wine); font-weight: 900; }
+.ship-table tfoot td { background: #f7eeec; font-weight: 900; }
+.ship-table tfoot td:first-child { background: #f1e3e0; }
+.ship-table tr.is-past td { color: #b9aeaa; }
+
+.ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
+
+@media (max-width: 560px) {
+  .ship-summary { grid-template-columns: repeat(2, 1fr); }
+  .ship-summary > div:nth-child(3) { border-left: 0; }
+  .ship-summary > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.2); }
+  .ship-day { grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; }
+  .ship-date .md { font-size: 20px; }
+  .ship-date .total { font-size: 22px; }
+}

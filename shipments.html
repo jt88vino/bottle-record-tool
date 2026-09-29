@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#6e1d35" />
     <title>今後の出荷件数</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./shipments.css" />
   </head>
   <body>
     <main class="page-shell">
@@ -17,13 +18,50 @@
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">WINE OPERATIONS</p>
         <h1 id="page-title">今後の出荷件数</h1>
-        <p>これから出荷する予定の件数を確認するページです。</p>
+        <p>定期便の次回配送予定日から、出荷日ごとの件数をまとめています。</p>
       </section>
 
-      <section class="card" aria-labelledby="pending-title">
-        <h2 id="pending-title">準備中</h2>
-        <p>表示する内容と元データはこれから決めて、ここに作り込みます。</p>
+      <div class="ship-toolbar">
+        <p id="ship-status" class="ship-status" aria-live="polite">読み込み中です…</p>
+        <div class="ship-toolbar-actions">
+          <a id="ship-source" class="ship-source" href="#" target="_blank" rel="noopener" hidden>元のスプレッドシート</a>
+          <button id="ship-reload" class="history-refresh" type="button">再読み込み</button>
+        </div>
+      </div>
+      <div id="ship-error" class="form-error" role="alert" hidden></div>
+
+      <section id="ship-summary" class="summary ship-summary" aria-live="polite" hidden>
+        <div><span>出荷件数 合計</span><strong><output id="sum-total">0</output><small>件</small></strong></div>
+        <div><span>出荷日数</span><strong><output id="sum-days">0</output><small>日</small></strong></div>
+        <div><span>うち PRO</span><strong><output id="sum-pro">0</output><small>件</small></strong></div>
+        <div><span>いちばん多い日</span><strong><output id="sum-peak">-</output></strong><span id="sum-peak-count" class="peak-count"></span></div>
+      </section>
+
+      <section id="ship-plans-card" class="card" hidden>
+        <h2>プラン別の件数</h2>
+        <div id="ship-plans" class="plan-chips"></div>
+      </section>
+
+      <div class="ship-view-tabs" role="tablist" aria-label="表示の切り替え" hidden id="ship-view-tabs">
+        <button class="ship-view-tab active" type="button" role="tab" aria-selected="true" data-view="list">日付ごと</button>
+        <button class="ship-view-tab" type="button" role="tab" aria-selected="false" data-view="table">一覧表</button>
+      </div>
+
+      <section id="ship-list" class="ship-list" aria-label="出荷日ごとの件数"></section>
+      <section id="ship-table-card" class="card ship-table-card" hidden>
+        <div class="ship-table-scroll"><table id="ship-table" class="ship-table"></table></div>
+      </section>
+
+      <section class="card ship-rules">
+        <h2>出荷日の決め方</h2>
+        <ul>
+          <li>定期回数はひとつ先の数字で表示しています（1回目 → Vol.2、2回目 → Vol.3）。</li>
+          <li>Vol.2〜Vol.12 は配送予定日に出荷します。土日にあたる場合は、直前の金曜日に出荷します。</li>
+          <li>13回目以降は PRO として、配送予定日の月の27日にまとめて出荷します。27日が土日なら直前の金曜日です。</li>
+          <li>祝日は考慮していません。</li>
+        </ul>
       </section>
     </main>
+    <script src="./shipments.js"></script>
   </body>
 </html>
