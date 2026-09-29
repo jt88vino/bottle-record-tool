@@ -1,4 +1,24 @@
-/* 今後の出荷件数ページ */
+/* 今後の出荷件数ページ
+   瓶詰め記録（ワイン色）と見分けがつくよう、このページだけ青緑系の配色にする。
+   styles.css の変数を上書きするので、共通部品（カード・集計帯・切り替えタブ）も自動でこの色になる。 */
+body.theme-ship {
+  --wine: #0f5f63;
+  --wine-dark: #0b3f45;
+  --cream: #f4f8f8;
+  --paper: #ffffff;
+  --ink: #1d2b2e;
+  --muted: #5f7074;
+  --line: #dde8ea;
+  --accent: #e3a23b;
+  --ship-soft: #e6f1f1;
+  --ship-track: #d9e8e9;
+  --ship-shadow: rgba(11, 63, 69, .08);
+  background: linear-gradient(140deg, #e2eeef 0%, var(--cream) 42%, #e5eeeb 100%);
+}
+body.theme-ship .card { background: rgba(255, 255, 255, .94); box-shadow: 0 8px 30px var(--ship-shadow); }
+body.theme-ship .summary { box-shadow: 0 10px 25px rgba(11, 63, 69, .2); }
+body.theme-ship .summary span { color: #d3ecec; }
+body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .ship-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .ship-status { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; }
 .ship-toolbar-actions { display: flex; align-items: center; gap: 12px; }
@@ -10,22 +30,22 @@
 .ship-summary .peak-count { margin: 4px 0 0; color: white; font-size: 14px; font-weight: 800; }
 
 .plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.plan-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border-radius: 999px; background: #f7eeec; color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
+.plan-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--ship-soft); color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
 .plan-chip b { color: var(--wine); font-size: 15px; }
 .plan-chip.is-pro { color: white; background: var(--wine-dark); }
 .plan-chip.is-pro b { color: var(--accent); }
 
-.ship-view-tabs { display: grid; grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; padding: 4px; border-radius: 13px; background: #eaded9; }
+.ship-view-tabs { display: grid; grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; padding: 4px; border-radius: 13px; background: var(--ship-track); }
 .ship-view-tab { min-height: 40px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 800; }
-.ship-view-tab.active { color: white; background: var(--wine); box-shadow: 0 4px 12px rgba(75, 16, 35, .18); }
+.ship-view-tab.active { color: white; background: var(--wine); box-shadow: 0 4px 12px rgba(11, 63, 69, .2); }
 
 .ship-list { display: grid; gap: 12px; margin-bottom: 16px; }
-.ship-day { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 18px; border-radius: 16px; background: rgba(255, 253, 249, .95); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 6px 22px rgba(75, 16, 35, .06); }
+.ship-day { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .96); border: 1px solid rgba(255,255,255,.85); box-shadow: 0 6px 22px var(--ship-shadow); }
 .ship-day.is-past { opacity: .5; }
-.ship-day.is-peak { border-color: var(--accent); box-shadow: 0 6px 22px rgba(219, 168, 92, .25); }
+.ship-day.is-peak { border-color: var(--accent); box-shadow: 0 6px 22px rgba(227, 162, 59, .28); }
 .ship-date { text-align: center; }
 .ship-date .md { display: block; font-size: 24px; font-weight: 900; letter-spacing: .02em; }
-.ship-date .wd { display: inline-block; margin-top: 3px; padding: 2px 9px; border-radius: 999px; background: #f7e9e8; color: var(--wine); font-size: 12px; font-weight: 800; }
+.ship-date .wd { display: inline-block; margin-top: 3px; padding: 2px 9px; border-radius: 999px; background: var(--ship-soft); color: var(--wine); font-size: 12px; font-weight: 800; }
 .ship-date .total { display: block; margin-top: 10px; color: var(--wine); font-size: 26px; font-weight: 900; line-height: 1; }
 .ship-date .total small { margin-left: 2px; font-size: 12px; }
 .ship-body .plan-chips { gap: 6px; }
@@ -42,11 +62,11 @@
 .ship-table thead th { position: sticky; top: 0; color: white; background: var(--wine); font-weight: 800; }
 .ship-table th:first-child, .ship-table td:first-child { position: sticky; left: 0; text-align: left; background: var(--paper); font-weight: 800; }
 .ship-table thead th:first-child { background: var(--wine-dark); }
-.ship-table td.zero { color: #cfc4bf; }
+.ship-table td.zero { color: #c3d0d2; }
 .ship-table td.total { color: var(--wine); font-weight: 900; }
-.ship-table tfoot td { background: #f7eeec; font-weight: 900; }
-.ship-table tfoot td:first-child { background: #f1e3e0; }
-.ship-table tr.is-past td { color: #b9aeaa; }
+.ship-table tfoot td { background: var(--ship-soft); font-weight: 900; }
+.ship-table tfoot td:first-child { background: var(--ship-track); }
+.ship-table tr.is-past td { color: #a9b6b8; }
 
 .ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
 
