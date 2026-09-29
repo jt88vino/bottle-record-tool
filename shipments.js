@@ -379,7 +379,8 @@
     if (dayChanged) openWeeks.clear();
     if (dayChanged || Date.now() - lastLoaded > 60 * 1000) reload();
   });
-  setInterval(() => { if (document.visibilityState === 'visible') reload(); }, 5 * 60 * 1000);
+  // 別の端末で入荷を記録した場合も早めに気づけるよう、表示中は2分ごとに読み直す（Google の CSV を読むだけなので軽い）
+  setInterval(() => { if (document.visibilityState === 'visible') reload(); }, 2 * 60 * 1000);
 
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
   setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); reload(); } }, 60 * 1000);
