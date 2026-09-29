@@ -1,5 +1,9 @@
 const { buildSchedule, rowsFromCsv, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { stockFromCsv, buildStockAlerts } = require('../lib/stock-alerts');
+const { recordPastDays, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
+const { loadLedger, saveLedger } = require('../lib/ledger-store');
+// 瓶詰め済みの小瓶を数える起点（2026-09-30 の朝時点の「瓶詰め使用」の累計）
+const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
 const { loadConfig } = require('../lib/config-store');
 
 // ECforce の定期受注レポートを貼ったスプレッドシート（リンクを知っている全員が閲覧可）
@@ -45,11 +49,12 @@ module.exports = async (request, response) => {
     return response.status(405).json({ error: 'GETで取得してください。' });
   }
   try {
-    const [scheduleCsv, stockResult, settings] = await Promise.all([
+    const [scheduleCsv, stockResult, settings, ledger] = await Promise.all([
       fetchCsv(SHEET_URL),
       // 入荷を記録した直後でも最新の在庫を読めるよう、毎回別のURLにしてキャッシュを避ける
       fetchCsv(`${STOCK_URL}&t=${Date.now()}`).then((text) => ({ text }), (error) => ({ error })),
       loadWineSettings(),
+      loadLedger(),
     ]);
     // 「これからの1週間」の起点は日本時間の今日。確認用に ?today=YYYY-MM-DD で差し替えられる
     const requested = String((request.query && request.query.today) || '');
@@ -61,10 +66,23 @@ module.exports = async (request, response) => {
     let stockError = null;
     try {
       if (stockResult.error) throw stockResult.error;
-      stock = buildStockAlerts(schedule.days, stockFromCsv(stockResult.text), {
+      const stockItems = stockFromCsv(stockResult.text);
+
+      // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す。起点の日〜昨日の出荷件数は、
+      // 定期レポートを貼り替えても消えないよう台帳に書き留めておく
+      const start = SMALL_BOTTLE_BASELINE.startDate;
+      if (recordPastDays(ledger, schedule.days, start, today)) {
+        await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));
+      }
+      const consumed = consumedByPlan(ledger, start, today, FORECASTS);
+      const smallBottles = smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor, consumed);
+
+      stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
         arriveDaysBefore: ARRIVE_DAYS_BEFORE, proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
+        smallBottles,
       });
+      stock.smallBottlesSince = start;
       stock.source = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/edit#gid=${STOCK_GID}`;
     } catch (error) {
       console.error('Stock alerts failed:', error.message);

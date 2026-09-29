@@ -166,6 +166,7 @@
     }
     const figures = [
       `<span>在庫 <b>${num(item.stock)}</b>本</span>`,
+      item.smallBottles ? `<span class="small-bottles">瓶詰め済みの小瓶 <b>${num(item.smallBottles)}</b>本</span>` : '',
       `<span>${item.forecast ? `月${num(item.forecast)}件の見込みで必要` : '今後の必要'} <b>${num(item.need)}</b>本</span>`,
       item.shortage ? `<span class="short">不足 <b>${num(item.shortage)}</b>本</span>` : '',
       item.suggested && item.level !== 'ok' ? `<span class="suggest">発注目安 <b>${num(item.suggested)}</b>本</span>` : '',
@@ -190,7 +191,7 @@
     card.open = readOpen();
     const loadedAt = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(data.fetchedAt));
     $('stock-meta').innerHTML = `在庫は ${loadedAt} に読み込み（入荷を記録すると自動で読み直します）・`
-      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
+      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・${s.smallBottlesSince ? `${md(s.smallBottlesSince)}以降に瓶詰めした小瓶も出荷に回して判定` : ''}・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
     if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));

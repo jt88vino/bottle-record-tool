@@ -27,9 +27,9 @@ test('在庫タブを見出し名で読む（上の説明行は読み飛ばす�
     '合計,,,,,,,,',
   ].join('\n');
   assert.deepEqual(stockFromCsv(csv), [
-    { id: 'vol.1-1', name: 'シャトー モンテレーナ', stock: 6, price: 9600 },
-    { id: 'vol.12-3', name: 'シルバー ハイツ', stock: -1, price: null },
-    { id: 'Pro.1', name: '', stock: 108, price: null },
+    { id: 'vol.1-1', name: 'シャトー モンテレーナ', stock: 6, price: 9600, bottled: 42 },
+    { id: 'vol.12-3', name: 'シルバー ハイツ', stock: -1, price: null, bottled: 23 },
+    { id: 'Pro.1', name: '', stock: 108, price: null, bottled: 0 },
   ]);
 });
 
@@ -190,4 +190,24 @@ test('Vol は出荷日の1週間前に届いている必要がある。1週間�
   const custom = byId(buildStockAlerts([{ date: '2026-10-19', plans: [{ label: 'Vol.5', count: 30 }] }],
     [{ id: 'vol.5-1', name: 'H', stock: 1, price: null }], { ...opts, arriveDaysBefore: 0 }))['vol.5-1'];
   assert.equal(custom.arriveBy, '2026-10-19');
+});
+
+test('瓶詰め済みの小瓶を出荷に回すと、足りなくなる日が延び、必要本数が減る', () => {
+  // Vol.2 は 10/2 に8件、10/6 に8件、10/9 に16件（計32件）。在庫1本（7.5件分）
+  const base = { ...opts, today: '2026-10-01' };
+  const without = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 1, price: null }], base))['vol.2-1'];
+  assert.equal(without.runsOutOn, '2026-10-02');
+  assert.equal(without.need, 5);
+  // 小瓶が 15本 あれば、在庫1本と合わせて 22.5件分 → 10/9 に尽きる。必要は ceil((32-15)/7.5)=3本
+  const withSmall = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 1, price: null }], { ...base, smallBottles: { 'vol.2-1': 15 } }))['vol.2-1'];
+  assert.equal(withSmall.smallBottles, 15);
+  assert.equal(withSmall.runsOutOn, '2026-10-09');
+  assert.equal(withSmall.need, 3);
+  assert.equal(withSmall.shortage, 2);
+  assert.match(withSmall.notes.join(), /瓶詰め済みの小瓶 15本/);
+  // 小瓶だけで全部まかなえるなら、ワインは要らない
+  const enough = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 20, price: null }], { ...base, smallBottles: { 'vol.2-1': 40 } }))['vol.2-1'];
+  assert.equal(enough.need, 0);
+  assert.equal(enough.runsOutOn, null);
+  assert.equal(enough.level, 'ok');
 });
