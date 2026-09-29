@@ -26,8 +26,11 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 
 .ship-summary { grid-template-columns: repeat(4, 1fr); margin-top: 0; }
 .ship-summary strong { font-size: 26px; }
-.ship-summary > div:last-child strong { font-size: 22px; white-space: nowrap; }
-.ship-summary .peak-count { margin: 4px 0 0; color: white; font-size: 14px; font-weight: 800; }
+.ship-summary .peak-count { margin: 4px 0 0; color: white; font-size: 13px; font-weight: 800; }
+.ship-summary > div:first-child { background: rgba(255, 255, 255, .08); }
+
+/* 注意書き */
+.ship-notice { margin: -8px auto 18px; padding: 11px 14px; border-left: 4px solid var(--accent); border-radius: 10px; color: #6b4a12; background: #fdf3e1; font-size: 13.5px; font-weight: 700; line-height: 1.6; }
 
 .plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .plan-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--ship-soft); color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
@@ -55,18 +58,62 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .ship-notes li::before { content: '↳ '; color: var(--accent); }
 .ship-past-label { margin-left: 6px; color: var(--muted); font-size: 11px; font-weight: 800; }
 
-.ship-table-card { padding: 0; overflow: hidden; }
-.ship-table-scroll { overflow-x: auto; }
-.ship-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.ship-table th, .ship-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-.ship-table thead th { position: sticky; top: 0; color: white; background: var(--wine); font-weight: 800; }
-.ship-table th:first-child, .ship-table td:first-child { position: sticky; left: 0; text-align: left; background: var(--paper); font-weight: 800; }
-.ship-table thead th:first-child { background: var(--wine-dark); }
-.ship-table td.zero { color: #c3d0d2; }
-.ship-table td.total { color: var(--wine); font-weight: 900; }
-.ship-table tfoot td { background: var(--ship-soft); font-weight: 900; }
-.ship-table tfoot td:first-child { background: var(--ship-track); }
-.ship-table tr.is-past td { color: #a9b6b8; }
+/* 週ごと：最初の1週間はカード、その先はトグル */
+.ship-weeks { display: grid; gap: 10px; margin-bottom: 18px; }
+.ship-weeks .card { margin-bottom: 0; }
+.week-card.is-current { border: 2px solid var(--wine); }
+.week-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.week-head h3 { margin: 2px 0 0; font-size: 20px; }
+.week-label { margin: 0; color: var(--wine); font-size: 12px; font-weight: 900; letter-spacing: .06em; }
+.week-totals { display: flex; gap: 14px; flex: none; text-align: right; font-size: 13px; font-weight: 800; color: var(--muted); }
+.week-totals b { margin-right: 2px; color: var(--wine); font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.week-totals .bottles b { color: #9a6410; }
+.week-days { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.week-day { padding: 4px 9px; border-radius: 8px; background: var(--ship-soft); font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.week-day b { color: var(--ink); }
+.week-toggle { padding: 0; }
+.week-toggle > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; list-style: none; }
+.week-toggle > summary::-webkit-details-marker { display: none; }
+.week-toggle > summary::before { content: '▶'; flex: none; color: var(--wine); font-size: 11px; transition: transform .15s; }
+.week-toggle[open] > summary::before { transform: rotate(90deg); }
+.week-summary-text { display: grid; flex: 1; min-width: 0; }
+.week-range { font-size: 16px; font-weight: 900; }
+.week-toggle .week-totals b { font-size: 19px; }
+.week-toggle-body { padding: 0 18px 18px; }
+.week-toggle.is-past { opacity: .6; }
+
+/* プラン別の表 */
+.plan-table-scroll { overflow-x: auto; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.plan-table th, .plan-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.plan-table th:first-child { text-align: left; }
+.plan-table thead th { color: var(--muted); font-size: 12px; font-weight: 800; border-bottom: 2px solid var(--line); }
+.plan-table small { margin-left: 2px; color: var(--muted); font-size: 11px; }
+.plan-table td.strong { color: var(--wine); font-weight: 900; }
+.plan-table tr.is-pro th { color: var(--wine-dark); }
+.plan-table tfoot th, .plan-table tfoot td { border-bottom: 0; background: var(--ship-soft); font-weight: 900; }
+
+/* 月ごとの合計と発注本数 */
+.ship-months { display: grid; gap: 16px; margin-bottom: 16px; }
+.month-card { margin-bottom: 0; }
+.month-head h2 { margin-bottom: 2px; }
+.month-range { margin: 0 0 14px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.month-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.month-kpis > div { padding: 12px 14px; border-radius: 12px; background: var(--ship-soft); }
+.month-kpis span { display: block; color: var(--muted); font-size: 12px; font-weight: 800; }
+.month-kpis strong { color: var(--wine); font-size: 28px; font-variant-numeric: tabular-nums; }
+.month-kpis > div:last-child strong { color: #9a6410; }
+.month-kpis small { margin-left: 3px; font-size: 13px; }
+.wine-details { margin-top: 14px; }
+.wine-details > summary { cursor: pointer; color: var(--wine); font-weight: 800; font-size: 14px; }
+.wine-groups { display: grid; gap: 12px; margin-top: 12px; }
+.wine-group h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: 14px; }
+.wine-group h4 span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.wine-group ul { margin: 0; padding: 0; list-style: none; }
+.wine-group li { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.wine-id { color: var(--muted); font-weight: 700; }
+.wine-group b { color: var(--wine); }
+.copy-order { margin-top: 14px; }
 
 .ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
 
@@ -75,6 +122,14 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
   .ship-summary > div:nth-child(3) { border-left: 0; }
   .ship-summary > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.2); }
   .ship-day { grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; }
+  .week-head { flex-direction: column; gap: 8px; }
+  .week-totals { text-align: left; }
+  .week-toggle > summary { padding: 14px; }
+  .week-toggle-body { padding: 0 14px 14px; }
+  .plan-table { font-size: 13px; }
+  .plan-table th, .plan-table td { padding: 7px 6px; }
+  .wine-group li { grid-template-columns: 1fr auto; }
+  .wine-id { grid-column: 1 / -1; font-size: 11px; }
   .ship-date .md { font-size: 20px; }
   .ship-date .total { font-size: 22px; }
 }
