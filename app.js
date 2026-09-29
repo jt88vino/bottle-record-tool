@@ -45,7 +45,8 @@ function reportText(report) {
 function openFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
-  if (!forms[tab]) return;
+  // toString などの組み込みの名前でタブが全部消えないよう、自前のキーだけを受け付ける
+  if (!tab || !Object.prototype.hasOwnProperty.call(forms, tab)) return;
   switchMode(tab);
   const wine = params.get('wine');
   if (!wine) return;

@@ -179,3 +179,7 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
   .ship-date .md { font-size: 20px; }
   .ship-date .total { font-size: 22px; }
 }
+
+/* 共通の summary::after（＋/−）がトグルの印とぶつからないようにする */
+.week-toggle > summary::after, .week-toggle[open] > summary::after { content: none; }
+.stock-card[open] > .stock-summary::after, .stock-group[open] > summary::after { content: '▶'; }

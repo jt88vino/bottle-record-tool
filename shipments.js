@@ -13,6 +13,8 @@
   let data = null;
   let view = 'week';
   const openWeeks = new Set(); // 開いたトグルは再読み込みしても開いたままにする
+  let openLevels = null;         // 発注アラートの区分トグル（初回は既定の開閉）
+  const openWineDetails = new Set(); // 月カードの「銘柄ごとの本数を見る」
 
   function chip(plan) {
     const pro = plan.label === 'PRO';
@@ -28,7 +30,8 @@
         <td title="${num(p.count)} ÷ ${data.factor} = ${p.exact}">${num(p.perWine)}<small>本</small></td>
         <td class="strong">${num(p.bottles)}<small>本</small></td>
       </tr>`).join('');
-    const total = plans.reduce((s, p) => ({ count: s.count + p.count, bottles: s.bottles + p.bottles }), { count: 0, bottles: 0 });
+    // 件数の合計は定期便の予定だけ（Vol.1 の見込み件数は足さない）。本数は見込み分も含める
+    const total = plans.reduce((s, p) => ({ count: s.count + (p.forecast ? 0 : p.count), bottles: s.bottles + p.bottles }), { count: 0, bottles: 0 });
     return `<div class="plan-table-scroll"><table class="plan-table">
       <thead><tr><th scope="col">プラン</th><th scope="col">件数</th><th scope="col">1銘柄あたり</th><th scope="col">必要本数</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -190,11 +193,12 @@
       + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
+    if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));
     $('stock-groups').innerHTML = Object.keys(LEVELS).map((level) => {
       const items = s.items.filter((i) => i.level === level);
       if (!items.length) return '';
       const meta = LEVELS[level];
-      return `<details class="stock-group level-${level}"${meta.open ? ' open' : ''}>
+      return `<details class="stock-group level-${level}" data-level="${level}"${openLevels.has(level) ? ' open' : ''}>
         <summary><span class="stock-badge level-${level}">${meta.label}</span>${esc(meta.title)}<b>${num(items.length)}銘柄</b></summary>
         <ul class="stock-list">${items.map(wineRow).join('')}</ul>
       </details>`;
@@ -248,7 +252,7 @@
           <div><span>必要なワイン</span><strong>${num(month.bottles + forecastBottles)}<small>本</small></strong>${forecastBottles ? `<em>Vol.1見込み ${num(forecastBottles)}本を含む</em>` : ''}</div>
         </div>
         ${planTable(plans)}
-        <details class="wine-details">
+        <details class="wine-details" data-month="${esc(month.key)}"${openWineDetails.has(month.key) ? ' open' : ''}>
           <summary>銘柄ごとの本数を見る（発注用）</summary>
           <div class="wine-groups">${wines}</div>
         </details>
@@ -340,7 +344,18 @@
   $('ship-reload').addEventListener('click', load);
   $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
-  $('stock-card').addEventListener('toggle', () => saveOpen($('stock-card').open));
+  $('stock-card').addEventListener('toggle', (event) => {
+    if (event.target === $('stock-card')) saveOpen($('stock-card').open);
+    const group = event.target.closest && event.target.closest('details.stock-group');
+    if (group && event.target === group && openLevels) {
+      if (group.open) openLevels.add(group.dataset.level); else openLevels.delete(group.dataset.level);
+    }
+  }, true);
+  $('ship-months').addEventListener('toggle', (event) => {
+    const el = event.target;
+    if (!el.matches || !el.matches('details.wine-details')) return;
+    if (el.open) openWineDetails.add(el.dataset.month); else openWineDetails.delete(el.dataset.month);
+  }, true);
 
   // 入荷などを記録すると、瓶詰め記録の画面が stockChangedAt を書き換える → 在庫を読み直す
   let loading = false;
@@ -359,15 +374,15 @@
     }
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && Date.now() - lastLoaded > 60 * 1000) reload();
+    if (document.visibilityState !== 'visible') return;
+    const dayChanged = data && todayKey() !== data.today;
+    if (dayChanged) openWeeks.clear();
+    if (dayChanged || Date.now() - lastLoaded > 60 * 1000) reload();
   });
   setInterval(() => { if (document.visibilityState === 'visible') reload(); }, 5 * 60 * 1000);
 
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
-  setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); load(); } }, 60 * 1000);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && data && todayKey() !== data.today) { openWeeks.clear(); load(); }
-  });
+  setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); reload(); } }, 60 * 1000);
 
   reload();
 })();
