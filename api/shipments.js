@@ -16,6 +16,7 @@ const STOCK_URL = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/export?for
 
 const LEAD_DAYS = 2; // 発注してから届くまで
 const LOW_STOCK = 6; // この本数以下なら知らせる
+const ARRIVE_DAYS_BEFORE = 7; // 出荷日当日では瓶詰めが間に合わないので、Vol は出荷日の1週間前までに届いている必要がある
 const PRO_ARRIVE_DAYS_BEFORE = 14; // PRO は出荷日（27日）の2週間前までに届いている必要がある
 // 定期レポートに出てこないプランの、月あたりの出荷の見込み（Vol.1 は新規のお客様向けで月平均130件）
 const FORECASTS = { 'Vol.1': 130 };
@@ -62,7 +63,7 @@ module.exports = async (request, response) => {
       if (stockResult.error) throw stockResult.error;
       stock = buildStockAlerts(schedule.days, stockFromCsv(stockResult.text), {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
-        proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
+        arriveDaysBefore: ARRIVE_DAYS_BEFORE, proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
       });
       stock.source = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/edit#gid=${STOCK_GID}`;
     } catch (error) {

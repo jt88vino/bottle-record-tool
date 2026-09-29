@@ -55,20 +55,22 @@ test('在庫でまかなえる件数を超える日が「足りなくなる日�
     { id: 'vol.3-1', name: 'E', stock: 0, price: null },  // 在庫0、10/2 に3件 → 間に合わない
   ], opts));
 
-  // A: 10/6(火)に尽きる → 発注期限 10/4(日) → 土日なので 10/2(金)。今日(10/1)の翌日が期限なので「至急」
+  // A: 10/6(火)に尽きる → 1週間前の 9/29(火) に届いている必要 → 発注期限 9/27(日) → 9/25(金)。過ぎているので「至急」
   assert.equal(r['vol.2-1'].runsOutOn, '2026-10-06');
-  assert.equal(r['vol.2-1'].orderBy, '2026-10-02');
+  assert.equal(r['vol.2-1'].arriveBy, '2026-09-29');
+  assert.equal(r['vol.2-1'].orderBy, '2026-09-25');
   assert.equal(r['vol.2-1'].orderByWeekday, '金');
   assert.equal(r['vol.2-1'].level, 'urgent');
   assert.equal(r['vol.2-1'].need, 5);
   assert.equal(r['vol.2-1'].shortage, 3);
   assert.equal(r['vol.2-1'].suggested, 9); // 5本 + 残す6本 − 在庫2本
 
-  // B: 10/2 に尽きる → 発注期限 9/30 → 今日より前なので「至急」＋間に合わない注記
+  // B: 10/2(金) に尽きる → 到着期限 9/25(金) → 発注期限 9/23(水)。今日より前なので「至急」＋間に合わない注記
   assert.equal(r['vol.2-2'].runsOutOn, '2026-10-02');
+  assert.equal(r['vol.2-2'].arriveBy, '2026-09-25');
+  assert.equal(r['vol.2-2'].orderBy, '2026-09-23');
   assert.equal(r['vol.2-2'].level, 'urgent');
   assert.match(r['vol.2-2'].notes.join(), /期限を過ぎています/);
-  assert.equal(r['vol.2-1'].notes.length, 0);
 
   assert.equal(r['vol.2-3'].level, 'ok');
   assert.equal(r['vol.2-3'].runsOutOn, null);
@@ -98,10 +100,9 @@ test('今日より前の出荷は数えない。並びは 至急 → 今週中 �
   ], { ...opts, today: '2026-10-03' });
   // 10/2 の8件は過ぎているので、Vol.2 の今後は 24件 → 4本
   assert.equal(result.items.find((i) => i.id === 'vol.2-3').need, 4);
-  // B: 10/6 に尽きる → 期限 10/2(金) → 過ぎている → 至急
-  // A: 10/9 に尽きる → 期限 10/7(水) → 今日(10/3)から6日以内 → 今週中
-  assert.deepEqual(result.items.map((i) => [i.id, i.level]), [['vol.2-2', 'urgent'], ['vol.2-1', 'soon'], ['vol.2-4', 'low'], ['vol.2-3', 'ok']]);
-  assert.deepEqual(result.counts, { urgent: 1, soon: 1, later: 0, low: 1, ok: 1 });
+  // B: 10/6 に尽きる → 到着 9/29 → 発注 9/25 → 至急。A: 10/9 に尽きる → 到着 10/2 → 発注 9/30 → 至急
+  assert.deepEqual(result.items.map((i) => [i.id, i.level]), [['vol.2-2', 'urgent'], ['vol.2-1', 'urgent'], ['vol.2-4', 'low'], ['vol.2-3', 'ok']]);
+  assert.deepEqual(result.counts, { urgent: 2, soon: 0, later: 0, low: 1, ok: 1 });
   assert.equal(result.horizonEnd, '2026-10-09');
 });
 
@@ -117,7 +118,8 @@ test('発注期限が1週間より先なら「その後」', () => {
   const series = [{ date: '2026-10-20', plans: [{ label: 'Vol.2', count: 30 }] }];
   const r = byId(buildStockAlerts(series, [{ id: 'vol.2-1', name: 'A', stock: 2, price: null }], opts));
   assert.equal(r['vol.2-1'].runsOutOn, '2026-10-20');
-  assert.equal(r['vol.2-1'].orderBy, '2026-10-16'); // 10/18(日) → 10/16(金)
+  assert.equal(r['vol.2-1'].arriveBy, '2026-10-13'); // 10/20(火) の1週間前
+  assert.equal(r['vol.2-1'].orderBy, '2026-10-09');  // 10/11(日) → 10/9(金)
   assert.equal(r['vol.2-1'].level, 'later');
 });
 
@@ -147,9 +149,9 @@ test('到着期限が土日なら直前の金曜日（PRO）。Vol は到着期�
     [{ id: 'Pro.3', name: '', stock: 0, price: null }], { ...opts, today: '2026-10-01' }));
   assert.equal(dec['Pro.3'].arriveBy, '2026-12-11');
   assert.equal(dec['Pro.3'].orderBy, '2026-12-09');
-  // 14日前が日曜になる例：10/30(金) 出荷 → 10/16(金)。10/28(水) 出荷 → 10/14(水)。10/26(月) 出荷 → 10/12(月)
+  // Vol は1週間前。10/6(火) に尽きる → 9/29(火)
   const vol = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 2, price: null }], opts));
-  assert.equal(vol['vol.2-1'].arriveBy, vol['vol.2-1'].runsOutOn);
+  assert.equal(vol['vol.2-1'].arriveBy, '2026-09-29');
 });
 
 test('Vol.1 は月平均130件の見込みで判定する（30日で1銘柄18本）', () => {
@@ -173,4 +175,19 @@ test('実際の出荷予定があるプランには見込みを使わない', ()
   const r = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 20, price: null }], { ...opts, forecasts: { 'Vol.2': 999 } }));
   assert.equal(r['vol.2-1'].forecast, null);
   assert.equal(r['vol.2-1'].shipments, 32);
+});
+
+test('Vol は出荷日の1週間前に届いている必要がある。1週間前が土日なら金曜日', () => {
+  const run = (date, today) => byId(buildStockAlerts([{ date, plans: [{ label: 'Vol.5', count: 30 }] }],
+    [{ id: 'vol.5-1', name: 'H', stock: 1, price: null }], { ...opts, today }))['vol.5-1'];
+  const mon = run('2026-10-19', '2026-10-01');      // 10/19(月) の1週間前 = 10/12(月) → 発注 10/10(土) → 10/9(金)
+  assert.deepEqual([mon.arriveBy, mon.orderBy, mon.level], ['2026-10-12', '2026-10-09', 'later']);
+  const soon = run('2026-10-19', '2026-10-05');     // 期限まで4日
+  assert.equal(soon.level, 'soon');
+  const tight = run('2026-10-19', '2026-10-08');    // 期限が明日
+  assert.equal(tight.level, 'urgent');
+  // 1週間前を変えられる
+  const custom = byId(buildStockAlerts([{ date: '2026-10-19', plans: [{ label: 'Vol.5', count: 30 }] }],
+    [{ id: 'vol.5-1', name: 'H', stock: 1, price: null }], { ...opts, arriveDaysBefore: 0 }))['vol.5-1'];
+  assert.equal(custom.arriveBy, '2026-10-19');
 });
