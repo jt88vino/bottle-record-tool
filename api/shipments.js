@@ -1,8 +1,8 @@
 const { buildSchedule, rowsFromCsv, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { stockFromCsv, buildStockAlerts } = require('../lib/stock-alerts');
-const { recordPastDays, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
+const { recordShipments, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
 const { loadLedger, saveLedger } = require('../lib/ledger-store');
-// 瓶詰め済みの小瓶を数える起点（2026-09-30 の朝時点の「瓶詰め使用」の累計）
+// 瓶詰め済みの小瓶を数える起点（2026-09-29 の瓶詰めを始める前の「瓶詰め使用」の累計）
 const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
 const { loadConfig } = require('../lib/config-store');
 
@@ -68,10 +68,10 @@ module.exports = async (request, response) => {
       if (stockResult.error) throw stockResult.error;
       const stockItems = stockFromCsv(stockResult.text);
 
-      // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す。起点の日〜昨日の出荷件数は、
-      // 定期レポートを貼り替えても消えないよう台帳に書き留めておく
+      // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す。起点の日からの出荷件数は、
+      // 定期レポートを貼り替えても消えないよう台帳に書き留めておく（台帳が読めなかった回は保存しない）
       const start = SMALL_BOTTLE_BASELINE.startDate;
-      if (recordPastDays(ledger, schedule.days, start, today)) {
+      if (recordShipments(ledger, schedule.days, start) && !ledger.loadFailed) {
         await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));
       }
       const consumed = consumedByPlan(ledger, start, today, FORECASTS);
