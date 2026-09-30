@@ -151,6 +151,21 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .stock-when { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .stock-when .deadline { color: #b42318; font-weight: 900; }
 .level-later .stock-when .deadline, .level-low .stock-when .deadline { color: #9a6410; }
+.stock-verdict { margin: 8px 0 0; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 800; line-height: 1.5; }
+.stock-verdict b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.stock-verdict small { display: block; font-size: 12px; font-weight: 700; opacity: .85; }
+.stock-verdict.is-order { color: #8b162e; background: #fdecee; }
+.stock-verdict.is-low { color: #7a4f0d; background: #fdf3e2; }
+.stock-verdict.is-ok { color: #1f5e3a; background: #eaf5ee; }
+.stock-math { display: grid; gap: 2px; margin: 6px 0 0; font-size: 12.5px; }
+.stock-math > div { display: grid; grid-template-columns: 11em 1fr; gap: 8px; padding: 2px 0; }
+.stock-math dt { color: var(--muted); font-weight: 700; }
+.stock-math dd { margin: 0; color: var(--ink); font-weight: 700; }
+.stock-math b { font-variant-numeric: tabular-nums; }
+.stock-math .is-short { border-top: 1px solid var(--line); padding-top: 4px; }
+.stock-math .is-short dd, .stock-math .is-short dt { color: #b42318; }
+.stock-math .is-enough { border-top: 1px solid var(--line); padding-top: 4px; }
+.stock-math-none { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; font-weight: 700; }
 .stock-figures { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; color: var(--muted); font-size: 12.5px; font-weight: 700; }
 .stock-figures b { color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
 .stock-figures .short b { color: #b42318; }
@@ -162,6 +177,7 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
 
 @media (max-width: 560px) {
+  .stock-math > div { grid-template-columns: 1fr; gap: 0; }
   .ship-summary { grid-template-columns: repeat(2, 1fr); }
   .ship-summary > div:nth-child(3) { border-left: 0; }
   .ship-summary > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.2); }

@@ -168,17 +168,35 @@
     } else {
       lines.push('<span>今後の出荷分は足りています</span>');
     }
-    const figures = [
-      `<span>在庫 <b>${num(item.stock)}</b>本</span>`,
-      item.smallBottles ? `<span class="small-bottles">瓶詰め済みの小瓶 <b>${num(item.smallBottles)}</b>本</span>` : '',
-      `<span>${item.forecast ? `月${num(item.forecast)}件の見込みで必要` : '今後の必要'} <b>${num(item.need)}</b>本</span>`,
-      item.shortage ? `<span class="short">不足 <b>${num(item.shortage)}</b>本</span>` : '',
-      item.suggested && item.level !== 'ok' ? `<span class="suggest">発注目安 <b>${num(item.suggested)}</b>本</span>` : '',
-    ].filter(Boolean).join('');
+    // 結論：ワインボトル（750ml）を何本発注するか
+    const s = data.stock;
+    const factor = s.factor || data.factor;
+    const reserve = Math.max(0, item.suggested - item.shortage);
+    let verdict;
+    if (item.shortage > 0) {
+      verdict = `<p class="stock-verdict is-order">ワインボトル（750ml）を <b>${num(item.suggested)}本</b> 発注してください<small>足りない ${num(item.shortage)}本${reserve ? ` ＋ 予備 ${num(reserve)}本` : ''}</small></p>`;
+    } else if (item.level === 'low' && item.suggested > 0) {
+      verdict = `<p class="stock-verdict is-low">出荷分は足りています。在庫が少ないので、予備としてワインボトル <b>${num(item.suggested)}本</b> の発注をおすすめします</p>`;
+    } else {
+      verdict = '<p class="stock-verdict is-ok">発注は不要です</p>';
+    }
+    // 内訳：出荷1件で小瓶1本を使うので、小瓶の本数にそろえて比べる
+    const period = item.forecast ? '今後1か月の出荷（見込み）' : `${md(s.horizonEnd)}(${wd(s.horizonEnd)})までの出荷`;
+    const stockSmall = Math.max(item.stock, 0) * factor;
+    const shortSmall = Math.max(0, Math.ceil(item.shipments - item.smallBottles - stockSmall - 1e-9));
+    const math = item.shipments ? `<dl class="stock-math">
+        <div><dt>${period}</dt><dd>${num(item.shipments)}件 → 小瓶 <b>${num(item.shipments)}本</b> が必要</dd></div>
+        <div><dt>瓶詰め済みの小瓶</dt><dd><b>${num(item.smallBottles)}本</b>${item.plan === 'PRO' ? '（PRO は数えていません）' : ''}</dd></div>
+        <div><dt>ワインボトルの在庫</dt><dd><b>${num(item.stock)}本</b>（小瓶 ${num(stockSmall)}本分）</dd></div>
+        <div class="${shortSmall ? 'is-short' : 'is-enough'}"><dt>${shortSmall ? '足りない分' : '差し引き'}</dt><dd>${shortSmall
+          ? `小瓶 <b>${num(shortSmall)}本</b>分 ＝ ワインボトル <b>${num(item.shortage)}本</b>（小瓶${num(factor)}本でボトル1本）`
+          : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall - item.shipments))}本分あまる`}</dd></div>
+      </dl>` : `<p class="stock-math-none">今後の出荷予定はありません・ワインボトルの在庫 ${num(item.stock)}本</p>`;
     return `<li class="stock-item level-${item.level}">
       <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span>${item.level !== 'ok' ? `<a class="stock-record" href="/?tab=incoming&amp;wine=${encodeURIComponent(item.id)}">入荷を記録 →</a>` : ''}</div>
       <div class="stock-when">${lines.join('')}</div>
-      <div class="stock-figures">${figures}</div>
+      ${verdict}
+      ${math}
       ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     </li>`;
   }
@@ -219,7 +237,7 @@
       const items = s.items.filter((i) => i.level === level);
       if (!items.length) return;
       lines.push(`■ ${LEVELS[level].title}`);
-      items.forEach((i) => lines.push(`  ${i.id} ${i.name || '（銘柄未設定）'}：発注目安 ${i.suggested}本（在庫${i.stock}本・不足${i.shortage}本・期限${md(i.orderBy)}）`));
+      items.forEach((i) => lines.push(`  ${i.id} ${i.name || '（銘柄未設定）'}：ワインボトル ${i.suggested}本（足りない${i.shortage}本＋予備・ボトル在庫${i.stock}本・瓶詰め済みの小瓶${i.smallBottles}本・発注期限${md(i.orderBy)}）`));
       lines.push('');
     });
     return lines.join('\n').trim();

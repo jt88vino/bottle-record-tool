@@ -204,7 +204,7 @@ test('瓶詰め済みの小瓶を出荷に回すと、足りなくなる日が�
   assert.equal(withSmall.runsOutOn, '2026-10-09');
   assert.equal(withSmall.need, 3);
   assert.equal(withSmall.shortage, 2);
-  assert.match(withSmall.notes.join(), /瓶詰め済みの小瓶 15本/);
+  assert.equal(withSmall.shipments, 32); // 画面の内訳：出荷32件（小瓶32本）− 小瓶15本 − 在庫1本（小瓶7.5本分）＝ 小瓶9.5本分 → ボトル2本
   // 小瓶だけで全部まかなえるなら、ワインは要らない
   const enough = byId(buildStockAlerts(days, [{ id: 'vol.2-1', name: 'A', stock: 20, price: null }], { ...base, smallBottles: { 'vol.2-1': 40 } }))['vol.2-1'];
   assert.equal(enough.need, 0);
