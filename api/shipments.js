@@ -1,9 +1,11 @@
-const { buildSchedule, rowsFromCsv, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
+const { buildSchedule, rowsFromCsv, rowsFromExtra, countsByDelivery, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { stockFromCsv, buildStockAlerts } = require('../lib/stock-alerts');
 const { recordShipments, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
 const { loadLedger, saveLedger } = require('../lib/ledger-store');
 // 瓶詰め済みの小瓶を数える起点（2026-09-29 の瓶詰めを始める前の「瓶詰め使用」の累計）
 const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
+// 定期レポートに載っていない配送予定日の件数（連絡をもらった分。Vol はそのままの数字）
+const EXTRA_DELIVERIES = require('../data/extra-deliveries.json');
 const { loadConfig } = require('../lib/config-store');
 
 // ECforce の定期受注レポートを貼ったスプレッドシート（リンクを知っている全員が閲覧可）
@@ -59,7 +61,9 @@ module.exports = async (request, response) => {
     // 「これからの1週間」の起点は日本時間の今日。確認用に ?today=YYYY-MM-DD で差し替えられる
     const requested = String((request.query && request.query.today) || '');
     const today = /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : todayInJapan();
-    const schedule = buildSchedule(rowsFromCsv(scheduleCsv), { ...settings, today, forecasts: FORECASTS });
+    const reportRows = rowsFromCsv(scheduleCsv);
+    const rows = reportRows.concat(rowsFromExtra(EXTRA_DELIVERIES, reportRows));
+    const schedule = buildSchedule(rows, { ...settings, today, forecasts: FORECASTS });
 
     // 在庫が読めなくても、出荷予定だけは表示する
     let stock = null;
@@ -71,12 +75,12 @@ module.exports = async (request, response) => {
       // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す。起点の日からの出荷件数は、
       // 定期レポートを貼り替えても消えないよう台帳に書き留めておく（台帳が読めなかった回は保存しない）
       const start = SMALL_BOTTLE_BASELINE.startDate;
-      if (recordShipments(ledger, schedule.days, start) && !ledger.loadFailed) {
+      if (recordShipments(ledger, countsByDelivery(rows), start) && !ledger.loadFailed) {
         await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));
       }
       // 台帳が読めないと出荷した分を引けず小瓶を多く数えてしまうので、その回は小瓶を数えない
       const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
-        consumedByPlan(ledger, start, today, FORECASTS, schedule.days));
+        consumedByPlan(ledger, start, today, FORECASTS, countsByDelivery(reportRows)));
 
       stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,

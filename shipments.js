@@ -125,6 +125,9 @@
         const span = day.pro.from === day.pro.to ? md(day.pro.from) : `${md(day.pro.from)}〜${md(day.pro.to)}`;
         notes.push(`PROの月末出荷：${span} の配送分 ${num(day.pro.count)}件`);
       }
+      if (day.extra && day.extra.length) {
+        notes.push(`定期レポートに無く、連絡をもらった数：${day.extra.map((s) => `${md(s.date)}(${s.weekday})着 ${num(s.count)}件`).join('・')}`);
+      }
       return `<article class="ship-day${day.total === peak ? ' is-peak' : ''}">
         <div class="ship-date">
           <span class="md">${md(day.date)}</span>
