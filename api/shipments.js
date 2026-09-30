@@ -63,12 +63,17 @@ module.exports = async (request, response) => {
     const today = /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : todayInJapan();
     const reportRows = rowsFromCsv(scheduleCsv);
     // 連絡をもらった数（Vol.1 は月の見込みで数えるので使わない）
-    const knownRows = reportRows.concat(rowsFromExtra(EXTRA_DELIVERIES, reportRows, { skipPlans: Object.keys(FORECASTS) }));
+    const extraRows = rowsFromExtra(EXTRA_DELIVERIES, reportRows, { skipPlans: Object.keys(FORECASTS) });
+    const knownRows = reportRows.concat(extraRows);
 
     // 定期レポートは注文が出た分から消えていくので、見えている出荷件数を台帳に控え、レポートに載る前に消えた日は
     // 見積もりを控える。在庫のシートが読めなくても控える（台帳が読めなかった回は、空の台帳で上書きしないよう保存しない）
     const start = SMALL_BOTTLE_BASELINE.startDate;
-    const recorded = recordShipments(ledger, countsByDelivery(knownRows), start);
+    // 連絡をもらった数は確かな数なので、訂正があれば台帳もその数に置き換える
+    const recorded = [
+      recordShipments(ledger, countsByDelivery(reportRows), start),
+      recordShipments(ledger, countsByDelivery(extraRows), start, { exact: true }),
+    ].some(Boolean);
     const estimated = fillEstimates(ledger, countsByDelivery(reportRows), start);
     if ((recorded || estimated) && !ledger.loadFailed) {
       await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));

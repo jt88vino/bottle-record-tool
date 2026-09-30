@@ -29,6 +29,10 @@ test('配送予定日ごとの出荷件数を台帳に書き留め、同じ日�
   // 件数が増えたら増えたほうにし、新しいプランは足す
   assert.equal(recordShipments(ledger, { '2026-10-05': { 'Vol.2': 10, 'Vol.4': 1 } }, '2026-09-29'), true);
   assert.deepEqual(ledger.deliveries['2026-10-05'], { 'Vol.2': 10, 'Vol.4': 1, PRO: 2 });
+  // 連絡をもらった数の訂正（exact）は、少なくなってもそのまま置き換える
+  assert.equal(recordShipments(ledger, { '2026-10-05': { 'Vol.2': 5 } }, '2026-09-29', { exact: true }), true);
+  assert.deepEqual(ledger.deliveries['2026-10-05'], { 'Vol.2': 5 });
+  assert.equal(recordShipments(ledger, { '2026-10-05': { 'Vol.2': 5 } }, '2026-09-29', { exact: true }), false);
 });
 
 test('出荷日が起点〜昨日の件数をプランごとに合計する。見込みのプランは平日数で按分', () => {

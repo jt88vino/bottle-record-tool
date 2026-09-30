@@ -78,3 +78,12 @@ test('台帳が読めなかった回は、保存せず、小瓶も数えない',
   assert.equal(body.stock.smallBottlesUnavailable, true);
   assert.equal(body.stock.items.find((i) => i.id === 'vol.8-4').smallBottles, 0);
 });
+
+test('連絡の数を訂正したら、台帳の記録も訂正した数になる', async () => {
+  // 前に 10/2着 Vol.8 を 54件 と控えていた
+  stored = { deliveries: { '2026-10-02': { 'Vol.8': 54 } } }; saves = 0; loadFails = false; stockFails = false;
+  scheduleCsv = csv(Array(3).fill('2026/10/06,7'));
+  stockCsv = stock(0, 37);
+  await call('2026-09-30');
+  assert.equal(stored.deliveries['2026-10-02']['Vol.8'], require('../data/extra-deliveries.json').deliveries['2026-10-02']['Vol.8']);
+});
