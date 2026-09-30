@@ -74,15 +74,17 @@ module.exports = async (request, response) => {
       if (recordShipments(ledger, schedule.days, start) && !ledger.loadFailed) {
         await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));
       }
-      const consumed = consumedByPlan(ledger, start, today, FORECASTS);
-      const smallBottles = smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor, consumed);
+      // 台帳が読めないと出荷した分を引けず小瓶を多く数えてしまうので、その回は小瓶を数えない
+      const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
+        consumedByPlan(ledger, start, today, FORECASTS, schedule.days));
 
       stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
         arriveDaysBefore: ARRIVE_DAYS_BEFORE, proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
         smallBottles,
       });
-      stock.smallBottlesSince = start;
+      stock.smallBottlesSince = ledger.loadFailed ? null : start;
+      stock.smallBottlesUnavailable = Boolean(ledger.loadFailed);
       stock.source = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/edit#gid=${STOCK_GID}`;
     } catch (error) {
       console.error('Stock alerts failed:', error.message);

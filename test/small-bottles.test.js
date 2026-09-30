@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { recordShipments, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
+const { recordShipments, consumedByPlan, weekdayAverages, smallBottlesOnHand } = require('../lib/small-bottles');
 
 const days = [
   { date: '2026-09-28', plans: [{ label: 'Vol.2', count: 99 }] }, // 起点より前は記録しない
@@ -53,10 +53,39 @@ test('起点からの瓶詰め本数×7.5 − 使った件数 を、銘柄ごと
   assert.deepEqual(smallBottlesOnHand([{ id: 'vol.2-1', bottled: 23 }], baseline, 7.5, { 'Vol.2': 20 }), {});
 });
 
-test('9/29 に瓶詰めしたカヤ（vol.8-4）の30本は、小瓶225本として数える', () => {
+test('定期レポートの最初の日から4週間の、平日1日あたりの件数（PRO は除く）', () => {
+  const avg = weekdayAverages([
+    { date: '2026-10-02', plans: [{ label: 'Vol.8', count: 20 }, { label: 'PRO', count: 900 }] },
+    { date: '2026-10-05', plans: [{ label: 'Vol.8', count: 20 }] },
+    { date: '2026-10-30', plans: [{ label: 'Vol.8', count: 999 }] }, // 4週間より先は入れない
+  ]);
+  assert.deepEqual(avg, { 'Vol.8': 40 / 20 }); // 10/2〜10/29 の平日は20日
+});
+
+test('レポートに載る前に済んだ出荷日（台帳にも無い平日）は、平日1日あたりの件数で見積もって引く', () => {
+  const days = [
+    { date: '2026-10-02', plans: [{ label: 'Vol.8', count: 20 }] },
+    { date: '2026-10-05', plans: [{ label: 'Vol.8', count: 20 }] },
+  ];
+  const ledger = { days: {} };
+  recordShipments(ledger, days, '2026-09-29');
+  // 今日 9/30：9/29(火)・9/30(水)・10/1(木) はレポートにも台帳にも無い → 3日 × 2件。今日以降の 9/30・10/1 も「今後の必要」に入らないので引く
+  assert.deepEqual(consumedByPlan(ledger, '2026-09-29', '2026-09-30', {}, days), { 'Vol.8': 6 });
+  // 台帳に記録のある日は見積もらない
+  ledger.days['2026-09-30'] = { 'Vol.8': 5 };
+  assert.deepEqual(consumedByPlan(ledger, '2026-09-29', '2026-10-01', {}, days), { 'Vol.8': 5 + 2 * 2 });
+  // 10/6 になれば 10/2・10/5 は台帳から数える
+  assert.deepEqual(consumedByPlan(ledger, '2026-09-29', '2026-10-06', {}, days), { 'Vol.8': 5 + 2 * 2 + 40 });
+});
+
+test('9/29 に瓶詰めしたカヤ（vol.8-4）の30本は小瓶225本。そこから 9/29〜10/1 の出荷の見積もりを引く', () => {
   const baseline = require('../data/small-bottle-baseline.json');
   assert.equal(baseline.startDate, '2026-09-29');
   assert.equal(baseline.bottledTotal['vol.8-4'], 7); // 9/30朝の37本 − 9/29の30本
-  const onHand = smallBottlesOnHand([{ id: 'vol.8-4', bottled: 37 }], baseline, 7.5, {});
-  assert.deepEqual(onHand, { 'vol.8-4': 225 });
+  assert.deepEqual(smallBottlesOnHand([{ id: 'vol.8-4', bottled: 37 }], baseline, 7.5, {}), { 'vol.8-4': 225 });
+  assert.deepEqual(smallBottlesOnHand([{ id: 'vol.8-4', bottled: 37 }], baseline, 7.5, { 'Vol.8': 15.8 * 3 }), { 'vol.8-4': 177 });
+});
+
+test('PRO は在庫シートに瓶詰めが入らないので、小瓶を数えない', () => {
+  assert.deepEqual(smallBottlesOnHand([{ id: 'Pro.1', bottled: 40 }], { bottledTotal: { 'Pro.1': 0 } }, 7.5, {}), {});
 });

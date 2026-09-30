@@ -13,5 +13,11 @@
       "source": "/",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/shipments",
+      "schedule": "0 23 * * *"
+    }
   ]
 }
