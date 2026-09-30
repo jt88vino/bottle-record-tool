@@ -158,7 +158,7 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .stock-verdict.is-low { color: #7a4f0d; background: #fdf3e2; }
 .stock-verdict.is-ok { color: #1f5e3a; background: #eaf5ee; }
 .stock-math { display: grid; gap: 2px; margin: 6px 0 0; font-size: 12.5px; }
-.stock-math > div { display: grid; grid-template-columns: 11em 1fr; gap: 8px; padding: 2px 0; }
+.stock-math > div { display: grid; grid-template-columns: 13em 1fr; gap: 8px; padding: 2px 0; }
 .stock-math dt { color: var(--muted); font-weight: 700; }
 .stock-math dd { margin: 0; color: var(--ink); font-weight: 700; }
 .stock-math b { font-variant-numeric: tabular-nums; }
