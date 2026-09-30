@@ -125,9 +125,10 @@
         const span = day.pro.from === day.pro.to ? md(day.pro.from) : `${md(day.pro.from)}〜${md(day.pro.to)}`;
         notes.push(`PROの月末出荷：${span} の配送分 ${num(day.pro.count)}件`);
       }
-      if (day.extra && day.extra.length) {
-        notes.push(`定期レポートに無く、連絡をもらった数：${day.extra.map((s) => `${md(s.date)}(${s.weekday})着 ${num(s.count)}件`).join('・')}`);
-      }
+      const byDelivery = (list) => list.map((s) => `${md(s.date)}(${s.weekday})着 ${num(s.count)}件`).join('・');
+      if (day.extra && day.extra.length) notes.push(`定期レポートに無く、連絡をもらった数：${byDelivery(day.extra)}`);
+      if (day.fromLedger && day.fromLedger.length) notes.push(`注文が出て定期レポートから消えた分（前に読んだ数）：${byDelivery(day.fromLedger)}`);
+      if (day.estimated && day.estimated.length) notes.push(`どこにも数が無いため見積もった分：${byDelivery(day.estimated)}`);
       return `<article class="ship-day${day.total === peak ? ' is-peak' : ''}">
         <div class="ship-date">
           <span class="md">${md(day.date)}</span>
@@ -237,8 +238,8 @@
 
   // ── 月ごとの合計と発注本数 ─────────────────────────
   function renderMonths() {
-    const forecasts = data.forecasts || [];
     $('ship-months').innerHTML = data.months.map((month) => {
+      const forecasts = month.forecasts || [];
       const plans = [...forecasts.map((p) => ({ ...p, label: `${p.label}（見込み）` })), ...month.plans];
       const forecastBottles = forecasts.reduce((sum, p) => sum + p.bottles, 0);
       const wines = plans.map((p) => `
@@ -266,13 +267,14 @@
   }
 
   function orderText(month) {
+    const forecasts = month.forecasts || [];
     const lines = [
       `${monthLabel(month.key)} 発注本数（${data.factor}件でワイン1本として計算）`,
-      `出荷件数 ${num(month.total)}件 ／ 必要なワイン ${num(month.bottles + (data.forecasts || []).reduce((sum, p) => sum + p.bottles, 0))}本（Vol.1は月${num(((data.forecasts || [])[0] || {}).count || 0)}件の見込み）`,
+      `出荷件数 ${num(month.total)}件 ／ 必要なワイン ${num(month.bottles + forecasts.reduce((sum, p) => sum + p.bottles, 0))}本${forecasts.length ? `（${forecasts.map((p) => `${p.label}は${num(p.count)}件の見込み`).join('・')}）` : ''}`,
       '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。',
       '',
     ];
-    [...(data.forecasts || []).map((p) => ({ ...p, label: `${p.label}（見込み）` })), ...month.plans].forEach((p) => {
+    [...forecasts.map((p) => ({ ...p, label: `${p.label}（見込み）` })), ...month.plans].forEach((p) => {
       lines.push(`■ ${p.label}（${num(p.count)}件・1銘柄 ${num(p.perWine)}本 × ${p.wineCount}銘柄 = ${num(p.bottles)}本）`);
       p.wines.forEach((w) => lines.push(`  ${w.id} ${w.name || '（銘柄未設定）'}：${num(w.bottles)}本`));
     });

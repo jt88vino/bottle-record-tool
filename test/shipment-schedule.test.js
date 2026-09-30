@@ -180,3 +180,21 @@ test('連絡をもらった配送予定日の件数は、Vol を進めずにそ�
   ]);
   assert.deepEqual(r.days[1].plans, [{ label: 'Vol.12', count: 1 }]);
 });
+
+test('連絡の 1回（Vol.1）は月の見込みで数えるので使わない', () => {
+  const rows = rowsFromExtra({ deliveries: { '2026-10-01': { 'Vol.1': 3, 'Vol.2': 1 } } }, [], { skipPlans: ['Vol.1'] });
+  assert.deepEqual(countsByDelivery(rows), { '2026-10-01': { 'Vol.2': 1 } });
+});
+
+test('月のカードの Vol.1 見込みは、今日から月末までの平日の分だけ入れる', () => {
+  const csv = '次回配送予定日,定期回数\n2026/10/01,1\n2026/10/06,1\n';
+  const r = buildSchedule(rowsFromCsv(csv), { factor: 7.5, today: '2026-09-30', forecasts: { 'Vol.1': 130 } });
+  // 9月：9/30 の1日 / 9月の平日22日 → 130×1/22 = 5.9 → 6件 → 1銘柄1本。10月：まるごと
+  assert.deepEqual(r.months.map((m) => [m.key, m.forecasts.map((p) => [p.label, p.count, p.perWine])]), [
+    ['2026-09', [['Vol.1', 6, 1]]],
+    ['2026-10', [['Vol.1', 130, 18]]],
+  ]);
+  // 10/1 になれば、出荷日がすべて過ぎた9月は出さない
+  const next = buildSchedule(rowsFromCsv(csv), { factor: 7.5, today: '2026-10-01', forecasts: { 'Vol.1': 130 } });
+  assert.deepEqual(next.months.map((m) => m.key), ['2026-10']);
+});
