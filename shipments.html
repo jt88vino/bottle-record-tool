@@ -39,6 +39,14 @@
         </summary>
         <div class="stock-body">
           <p id="stock-meta" class="stock-meta"></p>
+          <div class="incoming-bar">
+            <p class="incoming-bar-title">ここで入荷を記録できます</p>
+            <div class="incoming-bar-fields">
+              <label>記入日<input id="incoming-date" type="date" /></label>
+              <label>記入者<select id="incoming-recorder"><option value="">選択してください</option></select></label>
+            </div>
+            <p class="incoming-bar-note">各銘柄に入荷した本数を入れて「入荷を記録」を押すと、入荷タブと同じくSlackと在庫管理シートに記録されます。</p>
+          </div>
           <div id="stock-groups" class="stock-groups"></div>
           <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中に発注する分をコピー</button>
         </div>
@@ -90,6 +98,17 @@
         </ul>
       </section>
     </main>
+    <dialog id="incoming-dialog" aria-labelledby="incoming-dialog-title">
+      <div class="dialog-content">
+        <h2 id="incoming-dialog-title">入荷を記録しますか？</h2>
+        <pre id="incoming-preview" class="report-preview"></pre>
+        <p id="incoming-error" class="form-error" hidden></p>
+        <div class="dialog-actions">
+          <button id="incoming-cancel" class="secondary-button" type="button">戻る</button>
+          <button id="incoming-confirm" class="primary-button" type="button">記録を送信する</button>
+        </div>
+      </div>
+    </dialog>
     <div id="ship-toast" class="toast" role="status" aria-live="polite"></div>
     <script src="./shipments.js"></script>
   </body>

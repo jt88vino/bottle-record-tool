@@ -15,6 +15,11 @@
   const openWeeks = new Set(); // 開いたトグルは再読み込みしても開いたままにする
   let openLevels = null;         // 発注アラートの区分トグル（初回は既定の開閉）
   const openWineDetails = new Set(); // 月カードの「銘柄ごとの本数を見る」
+  // 発注アラートからの入荷の記録
+  const drafts = new Map();   // 入力途中の本数（自動の読み直しで消えないように）
+  const recorded = new Map(); // 記録した入荷。在庫に反映されるまで「記録しました」と出す
+  let recorderRows = {};      // 在庫シートの番号（vol.8-4）→ 瓶詰め記録の銘柄（id・ワイン名）
+  let pendingIncoming = null;
 
   function chip(plan) {
     const pro = plan.label === 'PRO';
@@ -198,12 +203,23 @@
           ? `小瓶 <b>${num(shortSmall)}本</b>分 ＝ ワインボトル <b>${num(item.shortage)}本</b>（小瓶${num(factor)}本でボトル1本）`
           : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall - item.shipments))}本分あまる`}</dd></div>
       </dl>` : `<p class="stock-math-none">今後の出荷予定はありません・ワインボトルの在庫 ${num(item.stock)}本</p>`;
+    // 入荷の記録（入荷タブと同じく Slack と在庫管理シートへ）
+    const done = recorded.get(item.id);
+    if (done && (item.stock >= done.stockBefore + done.bottles || Date.now() - done.at > 15 * 60 * 1000)) recorded.delete(item.id);
+    const stillDone = recorded.get(item.id);
+    const record = item.level === 'ok' ? '' : `<form class="incoming-inline" data-wine="${esc(item.id)}">
+        <label><span>入荷した本数</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数" /><span>本</span></label>
+        <button class="incoming-submit" type="submit">入荷を記録</button>
+        <a class="incoming-detail" href="/?tab=incoming&amp;wine=${encodeURIComponent(item.id)}">備考も入れる →</a>
+        ${stillDone ? `<p class="incoming-done">${md(stillDone.date)} の入荷 ${num(stillDone.bottles)}本 を記録しました。在庫への反映に数分かかります</p>` : ''}
+      </form>`;
     return `<li class="stock-item level-${item.level}">
-      <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span>${item.level !== 'ok' ? `<a class="stock-record" href="/?tab=incoming&amp;wine=${encodeURIComponent(item.id)}">入荷を記録 →</a>` : ''}</div>
+      <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span></div>
       <div class="stock-when">${lines.join('')}</div>
       ${verdict}
       ${math}
       ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${record}
     </li>`;
   }
 
@@ -223,6 +239,9 @@
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
     if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));
+    // 入力中の欄があれば、描き直したあとも同じ欄にカーソルを戻す
+    const active = document.activeElement;
+    const focusedWine = active && active.closest && active.closest('.incoming-inline') ? active.closest('.incoming-inline').dataset.wine : null;
     $('stock-groups').innerHTML = Object.keys(LEVELS).map((level) => {
       const items = s.items.filter((i) => i.level === level);
       if (!items.length) return '';
@@ -233,7 +252,78 @@
       </details>`;
     }).join('');
     $('stock-copy').hidden = !s.items.some((i) => i.urgentNeed || (i.monthNeeds || []).some((m) => m.orderBy <= addDaysKey(s.today, 6)));
+    if (!$('incoming-date').value) $('incoming-date').value = todayKey();
     card.hidden = false;
+    if (focusedWine) {
+      const input = document.querySelector(`.incoming-inline[data-wine="${CSS.escape(focusedWine)}"] input`);
+      if (input) input.focus({ preventScroll: true });
+    }
+  }
+
+  // ── 発注アラートから入荷を記録する ─────────────────────
+  async function loadRecorders() {
+    try {
+      const response = await fetch('/api/config', { cache: 'no-store' });
+      if (!response.ok) throw new Error();
+      const config = await response.json();
+      recorderRows = Object.fromEntries((config.groups || []).flatMap((g) => g.rows || []).map((row) => [row.label, { id: row.id, wineName: row.wineName || '' }]));
+      const select = $('incoming-recorder');
+      (config.recorderNames || []).forEach((name) => select.add(new Option(name, name)));
+      let saved = '';
+      try { saved = window.localStorage.getItem('shipments.recorder') || ''; } catch { /* 保存できなくても選び直せばよい */ }
+      if (saved && (config.recorderNames || []).includes(saved)) select.value = saved;
+    } catch {
+      // 設定が読めなければ、記録のときに入荷タブを案内する
+    }
+  }
+
+  function openIncoming(form) {
+    const wine = form.dataset.wine;
+    const bottles = Number(form.elements.bottles.value);
+    const date = $('incoming-date').value;
+    const recorderName = $('incoming-recorder').value;
+    const row = recorderRows[wine];
+    const item = data.stock.items.find((i) => i.id === wine);
+    if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('入荷した本数を1〜9999で入力してください'); form.elements.bottles.focus(); return; }
+    if (!date) { toast('記入日を入れてください'); $('incoming-date').focus(); return; }
+    if (!recorderName) { toast('記入者を選んでください'); $('incoming-recorder').focus(); return; }
+    if (!row) { toast('この銘柄は瓶詰め記録の設定に見つかりません。入荷タブから記録してください'); return; }
+    pendingIncoming = { wine, rowId: row.id, bottles, date, recorderName, stockBefore: item ? item.stock : 0 };
+    $('incoming-preview').textContent = `入荷記録\n記入日: ${date}\n記入者: ${recorderName}\n\n${wine}｜${row.wineName || (item && item.name) || '（ワイン名未設定）'}: ${num(bottles)}本\n\nSlackと在庫管理シートに記録します。`;
+    $('incoming-error').hidden = true;
+    $('incoming-dialog').showModal();
+  }
+
+  async function sendIncoming() {
+    if (!pendingIncoming) return;
+    const button = $('incoming-confirm');
+    button.disabled = true;
+    button.textContent = '送信中…';
+    const sent = pendingIncoming;
+    try {
+      const response = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'incoming', date: sent.date, recorderName: sent.recorderName, notes: '', supplier: '', items: [{ id: sent.rowId, bottles: sent.bottles, itemNote: '' }] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!result.sheetsSaved) throw new Error(result.error || '記録の送信に失敗しました。');
+      $('incoming-dialog').close();
+      pendingIncoming = null;
+      drafts.delete(sent.wine);
+      recorded.set(sent.wine, { bottles: sent.bottles, date: sent.date, stockBefore: sent.stockBefore, at: Date.now() });
+      toast(result.ok ? `${sent.wine} の入荷 ${num(sent.bottles)}本 をSlackと在庫管理シートへ記録しました` : result.error);
+      renderStock();
+      // ほかのタブの出荷ページにも知らせ、在庫シートへの反映を待って読み直す
+      try { window.localStorage.setItem('stockChangedAt', `${Date.now()}:incoming`); } catch { /* 知らせられなくても読み直しは下で行う */ }
+      [20, 60, 180].forEach((sec) => setTimeout(reload, sec * 1000));
+    } catch (error) {
+      $('incoming-error').textContent = error.message || '記録の送信に失敗しました。';
+      $('incoming-error').hidden = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = '記録を送信する';
+    }
   }
 
   function addDaysKey(key, n) {
@@ -383,6 +473,21 @@
     if (button) copyOrder(button.dataset.month);
   });
   $('ship-reload').addEventListener('click', load);
+  $('stock-groups').addEventListener('input', (event) => {
+    const form = event.target.closest('.incoming-inline');
+    if (form) drafts.set(form.dataset.wine, event.target.value);
+  });
+  $('stock-groups').addEventListener('submit', (event) => {
+    const form = event.target.closest('.incoming-inline');
+    if (!form) return;
+    event.preventDefault();
+    openIncoming(form);
+  });
+  $('incoming-recorder').addEventListener('change', () => {
+    try { window.localStorage.setItem('shipments.recorder', $('incoming-recorder').value); } catch { /* 次回また選べばよい */ }
+  });
+  $('incoming-cancel').addEventListener('click', () => { pendingIncoming = null; $('incoming-dialog').close(); });
+  $('incoming-confirm').addEventListener('click', sendIncoming);
   $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
   $('stock-card').addEventListener('toggle', (event) => {
@@ -426,5 +531,6 @@
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
   setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); reload(); } }, 60 * 1000);
 
+  loadRecorders();
   reload();
 })();
