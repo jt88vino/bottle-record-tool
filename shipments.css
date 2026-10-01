@@ -155,6 +155,12 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .stock-verdict b { font-size: 16px; font-variant-numeric: tabular-nums; }
 .stock-verdict small { display: block; font-size: 12px; font-weight: 700; opacity: .85; }
 .stock-verdict.is-order { color: #8b162e; background: #fdecee; }
+.stock-verdict + .stock-verdict { margin-top: 4px; }
+.stock-verdict.is-month { color: #0f4c4f; background: #e6f2f2; }
+.verdict-tag { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 5px; color: #fff; background: currentColor; font-size: 11.5px; vertical-align: 1px; }
+.stock-verdict .verdict-tag { color: inherit; }
+.stock-verdict.is-order .verdict-tag { background: #b42318; color: #fff; }
+.stock-verdict.is-month .verdict-tag { background: #0f5f63; color: #fff; }
 .stock-verdict.is-low { color: #7a4f0d; background: #fdf3e2; }
 .stock-verdict.is-ok { color: #1f5e3a; background: #eaf5ee; }
 .stock-math { display: grid; gap: 2px; margin: 6px 0 0; font-size: 12.5px; }

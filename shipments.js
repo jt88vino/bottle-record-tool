@@ -151,7 +151,7 @@
   const LEVELS = {
     urgent: { label: '至急', title: '至急：発注期限が明日まで', open: true },
     soon: { label: '今週中', title: '今週中に発注', open: true },
-    later: { label: 'その後', title: '今後、発注が必要', open: false },
+    later: { label: 'その後', title: '今後、発注が必要', open: true },
     low: { label: '残り少ない', title: `在庫が少ない（出荷分は足りている）`, open: true },
     ok: { label: '問題なし', title: '問題なし', open: false },
   };
@@ -168,17 +168,23 @@
     } else {
       lines.push('<span>今後の出荷分は足りています</span>');
     }
-    // 結論：ワインボトル（750ml）を何本発注するか
+    // 結論：ワインボトル（750ml）を何本発注するか。サブスクの件数は前後するので、予備は持たず最小限にする。
+    // 至急は「いま発注しないと間に合わない出荷分」だけ。月の分は至急に入れず、その発注期限までに発注すればよい
     const s = data.stock;
     const factor = s.factor || data.factor;
-    const reserve = Math.max(0, item.suggested - item.shortage);
-    let verdict;
-    if (item.shortage > 0) {
-      verdict = `<p class="stock-verdict is-order">ワインボトル（750ml）を <b>${num(item.suggested)}本</b> 発注してください<small>足りない ${num(item.shortage)}本${reserve ? ` ＋ 予備 ${num(reserve)}本` : ''}</small></p>`;
-    } else if (item.level === 'low' && item.suggested > 0) {
-      verdict = `<p class="stock-verdict is-low">出荷分は足りています。在庫が少ないので、予備としてワインボトル <b>${num(item.suggested)}本</b> の発注をおすすめします</p>`;
-    } else {
-      verdict = '<p class="stock-verdict is-ok">発注は不要です</p>';
+    const orders = [];
+    if (item.urgentNeed) {
+      const until = `${md(item.urgentUntil)}(${esc(item.urgentUntilWeekday)})の出荷${item.urgentDeliveryUntil ? `（${md(item.urgentDeliveryUntil)}着）` : ''}分まで`;
+      orders.push(`<p class="stock-verdict is-order"><span class="verdict-tag">至急</span>ワインボトル（750ml） <b>${num(item.urgentNeed)}本</b><small>${until}に必ず必要な本数だけです。今日〜明日に発注してください</small></p>`);
+    }
+    (item.monthNeeds || []).forEach((m) => {
+      orders.push(`<p class="stock-verdict is-month"><span class="verdict-tag">${esc(monthLabel(m.month).replace(/^\d+年/, ''))}に必要</span>ワインボトル（750ml） <b>${num(m.bottles)}本</b><small>${item.urgentNeed ? '至急とは別に、' : ''}${md(m.from)}(${esc(m.fromWeekday)})の出荷分から必要・発注期限 ${md(m.orderBy)}(${esc(m.orderByWeekday)})</small></p>`);
+    });
+    let verdict = orders.join('');
+    if (!orders.length) {
+      verdict = item.level === 'low'
+        ? `<p class="stock-verdict is-low">出荷分は足りています（在庫が ${num(item.stock)}本 と少なくなっています）</p>`
+        : '<p class="stock-verdict is-ok">発注は不要です</p>';
     }
     // 内訳：出荷1件で小瓶1本を使うので、小瓶の本数にそろえて比べる
     const period = item.forecast ? '今後1か月の出荷（見込み）' : `${md(s.horizonEnd)}(${wd(s.horizonEnd)})までの出荷`;
@@ -226,20 +232,31 @@
         <ul class="stock-list">${items.map(wineRow).join('')}</ul>
       </details>`;
     }).join('');
-    $('stock-copy').hidden = !(s.counts.urgent || s.counts.soon);
+    $('stock-copy').hidden = !s.items.some((i) => i.urgentNeed || (i.monthNeeds || []).some((m) => m.orderBy <= addDaysKey(s.today, 6)));
     card.hidden = false;
+  }
+
+  function addDaysKey(key, n) {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d) + n * 86400000).toISOString().slice(0, 10);
   }
 
   function stockOrderText() {
     const s = data.stock;
-    const lines = [`発注リスト（${md(s.today)}時点・届くまで${s.leadDays}日で計算）`, '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。', ''];
-    ['urgent', 'soon'].forEach((level) => {
-      const items = s.items.filter((i) => i.level === level);
-      if (!items.length) return;
-      lines.push(`■ ${LEVELS[level].title}`);
-      items.forEach((i) => lines.push(`  ${i.id} ${i.name || '（銘柄未設定）'}：ワインボトル ${i.suggested}本（足りない${i.shortage}本＋予備・ボトル在庫${i.stock}本・瓶詰め済みの小瓶${i.smallBottles}本・発注期限${md(i.orderBy)}）`));
+    const lines = [`発注リスト（${md(s.today)}時点・届くまで${s.leadDays}日で計算・予備は含めない最小限の本数）`, '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。', ''];
+    const urgent = s.items.filter((i) => i.urgentNeed);
+    if (urgent.length) {
+      lines.push('■ 至急（いま発注しないと間に合わない分だけ）');
+      urgent.forEach((i) => lines.push(`  ${i.id} ${i.name || '（銘柄未設定）'}：ワインボトル ${i.urgentNeed}本（${md(i.urgentUntil)}の出荷${i.urgentDeliveryUntil ? `・${md(i.urgentDeliveryUntil)}着` : ''}分まで）`));
       lines.push('');
-    });
+    }
+    const soonLimit = addDaysKey(s.today, 6);
+    const monthly = s.items.flatMap((i) => (i.monthNeeds || []).filter((m) => m.orderBy <= soonLimit).map((m) => ({ ...m, item: i })));
+    if (monthly.length) {
+      lines.push('■ 今週中に発注（至急とは別。月ごとに必要な分）');
+      monthly.forEach((m) => lines.push(`  ${m.item.id} ${m.item.name || '（銘柄未設定）'}：ワインボトル ${m.bottles}本（${monthLabel(m.month).replace(/^\d+年/, '')}分・${md(m.from)}の出荷分から・発注期限${md(m.orderBy)}）`));
+      lines.push('');
+    }
     return lines.join('\n').trim();
   }
 

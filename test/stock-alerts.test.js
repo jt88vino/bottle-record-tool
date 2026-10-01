@@ -211,3 +211,31 @@ test('瓶詰め済みの小瓶を出荷に回すと、足りなくなる日が�
   assert.equal(enough.runsOutOn, null);
   assert.equal(enough.level, 'ok');
 });
+
+test('至急は発注期限が明日までの出荷分に必ず必要な本数だけ。残りは出荷日の月ごとに分け、至急に入れない', () => {
+  // 今日 10/1(木)。Vol は出荷日の7日前に到着、その2日前（平日）が発注期限
+  //   10/13(火)出荷 → 到着 10/6 → 発注 10/4(日)→10/2(金)：明日まで → 至急
+  //   10/20(火)出荷 → 到着 10/13 → 発注 10/11(日)→10/9(金)：至急ではない
+  const days = [['2026-10-02', 20], ['2026-10-09', 20], ['2026-10-13', 20], ['2026-10-20', 20], ['2026-11-04', 20]]
+    .map(([date, count]) => ({ date, plans: [{ label: 'Vol.8', count }] }));
+  const item = buildStockAlerts(days, [{ id: 'vol.8-4', name: 'K', stock: 0, price: null }], { today: '2026-10-01', factor: 7.5, smallBottles: { 'vol.8-4': 25 } }).items[0];
+  assert.equal(item.level, 'urgent');
+  // 10/13 までの60件 − 小瓶25本 = 35本分 → ボトル5本（予備は足さない）
+  assert.equal(item.urgentNeed, 5);
+  assert.equal(item.urgentUntil, '2026-10-13');
+  assert.equal(item.urgentDeliveryUntil, '2026-10-14');
+  // 10月の残り：10/20 の分から。11月：11/4 の分。足すと不足と同じ
+  assert.deepEqual(item.monthNeeds.map((m) => [m.month, m.bottles, m.from, m.orderBy]), [
+    ['2026-10', 3, '2026-10-20', '2026-10-09'],
+    ['2026-11', 2, '2026-11-04', '2026-10-26'],
+  ]);
+  assert.equal(item.urgentNeed + item.monthNeeds.reduce((sum, m) => sum + m.bottles, 0), item.shortage);
+  // 金曜の出荷は月曜着の分まで含む
+  const friday = buildStockAlerts([{ date: '2026-10-09', plans: [{ label: 'Vol.8', count: 8 }] }], [{ id: 'vol.8-1', name: 'A', stock: 0, price: null }], { today: '2026-10-01', factor: 7.5 }).items[0];
+  assert.deepEqual([friday.urgentNeed, friday.urgentUntil, friday.urgentDeliveryUntil, friday.monthNeeds], [2, '2026-10-09', '2026-10-12', []]);
+  // 至急の出荷分が在庫で足りていれば、至急は0本で、月の分だけ
+  const later = buildStockAlerts(days, [{ id: 'vol.8-2', name: 'B', stock: 8, price: null }], { today: '2026-10-01', factor: 7.5 }).items[0];
+  assert.equal(later.urgentNeed, 0);
+  assert.equal(later.urgentUntil, null);
+  assert.deepEqual(later.monthNeeds.map((m) => [m.month, m.bottles]), [['2026-10', 3], ['2026-11', 3]]);
+});
