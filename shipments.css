@@ -181,20 +181,14 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 #stock-copy { margin-top: 12px; }
 
 /* 発注アラートから入荷を記録 */
-.incoming-bar { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #cfe3e3; border-radius: 10px; background: #f3f9f9; }
-.incoming-bar-title { margin: 0 0 6px; color: #0f4c4f; font-size: 13px; font-weight: 800; }
-.incoming-bar-fields { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.incoming-bar-fields label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 800; }
-.incoming-bar-fields input, .incoming-bar-fields select { min-height: 34px; padding: 4px 8px; border: 1px solid #c9d9d9; border-radius: 7px; background: #fff; color: var(--ink); font-weight: 700; }
-.incoming-bar-note { margin: 6px 0 0; color: var(--muted); font-size: 12px; font-weight: 700; }
 .incoming-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; padding-top: 8px; border-top: 1px dotted var(--line); }
 .incoming-inline label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 800; }
 .incoming-inline input { width: 84px; min-height: 34px; padding: 4px 8px; border: 1px solid #c9d9d9; border-radius: 7px; text-align: right; font-size: 16px; font-weight: 800; }
 .incoming-submit { min-height: 34px; padding: 0 14px; border: 0; border-radius: 8px; color: #fff; background: #0f5f63; cursor: pointer; font-weight: 800; font-size: 13px; }
 .incoming-submit:hover { background: #0b4a4d; }
-.incoming-detail { color: #0f5f63; font-size: 12px; font-weight: 800; }
 .incoming-done { flex-basis: 100%; margin: 2px 0 0; color: #1f5e3a; font-size: 12px; font-weight: 800; }
-#incoming-dialog .report-preview { white-space: pre-wrap; font-family: inherit; }
+.incoming-submit:disabled { opacity: .6; cursor: wait; }
+.incoming-error { flex-basis: 100%; margin: 2px 0 0; color: #b42318; font-size: 12px; font-weight: 800; }
 
 .ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
 

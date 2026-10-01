@@ -18,8 +18,9 @@
   // 発注アラートからの入荷の記録
   const drafts = new Map();   // 入力途中の本数（自動の読み直しで消えないように）
   const recorded = new Map(); // 記録した入荷。在庫に反映されるまで「記録しました」と出す
-  let recorderRows = {};      // 在庫シートの番号（vol.8-4）→ 瓶詰め記録の銘柄（id・ワイン名）
-  let pendingIncoming = null;
+  const sending = new Set();  // 送信中の銘柄（二重に送らない）
+  const failed = new Map();   // 送れなかった銘柄とその理由
+  let recorderRows = {};      // 在庫シートの番号（vol.8-4）→ 瓶詰め記録の銘柄の id
 
   function chip(plan) {
     const pro = plan.label === 'PRO';
@@ -207,11 +208,13 @@
     const done = recorded.get(item.id);
     if (done && (item.stock >= done.stockBefore + done.bottles || Date.now() - done.at > 15 * 60 * 1000)) recorded.delete(item.id);
     const stillDone = recorded.get(item.id);
+    const busy = sending.has(item.id);
+    const error = failed.get(item.id);
     const record = item.level === 'ok' ? '' : `<form class="incoming-inline" data-wine="${esc(item.id)}">
-        <label><span>入荷した本数</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数" /><span>本</span></label>
-        <button class="incoming-submit" type="submit">入荷を記録</button>
-        <a class="incoming-detail" href="/?tab=incoming&amp;wine=${encodeURIComponent(item.id)}">備考も入れる →</a>
-        ${stillDone ? `<p class="incoming-done">${md(stillDone.date)} の入荷 ${num(stillDone.bottles)}本 を記録しました。在庫への反映に数分かかります</p>` : ''}
+        <label><span>入荷</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数"${busy ? ' disabled' : ''} /><span>本</span></label>
+        <button class="incoming-submit" type="submit"${busy ? ' disabled' : ''}>${busy ? '記録中…' : '記録'}</button>
+        ${stillDone ? `<p class="incoming-done">入荷 ${num(stillDone.bottles)}本 を記録しました（在庫への反映に数分かかります）</p>` : ''}
+        ${error ? `<p class="incoming-error">${esc(error)}</p>` : ''}
       </form>`;
     return `<li class="stock-item level-${item.level}">
       <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span></div>
@@ -252,7 +255,6 @@
       </details>`;
     }).join('');
     $('stock-copy').hidden = !s.items.some((i) => i.urgentNeed || (i.monthNeeds || []).some((m) => m.orderBy <= addDaysKey(s.today, 6)));
-    if (!$('incoming-date').value) $('incoming-date').value = todayKey();
     card.hidden = false;
     if (focusedWine) {
       const input = document.querySelector(`.incoming-inline[data-wine="${CSS.escape(focusedWine)}"] input`);
@@ -261,67 +263,50 @@
   }
 
   // ── 発注アラートから入荷を記録する ─────────────────────
-  async function loadRecorders() {
+  // 本数を入れて「記録」を押すだけ。記入日は今日、記入者・備考は空欄（入荷タブと同じく Slack と在庫管理シートへ）
+  async function loadWineIds() {
     try {
       const response = await fetch('/api/config', { cache: 'no-store' });
       if (!response.ok) throw new Error();
       const config = await response.json();
-      recorderRows = Object.fromEntries((config.groups || []).flatMap((g) => g.rows || []).map((row) => [row.label, { id: row.id, wineName: row.wineName || '' }]));
-      const select = $('incoming-recorder');
-      (config.recorderNames || []).forEach((name) => select.add(new Option(name, name)));
-      let saved = '';
-      try { saved = window.localStorage.getItem('shipments.recorder') || ''; } catch { /* 保存できなくても選び直せばよい */ }
-      if (saved && (config.recorderNames || []).includes(saved)) select.value = saved;
+      recorderRows = Object.fromEntries((config.groups || []).flatMap((g) => g.rows || []).map((row) => [row.label, row.id]));
     } catch {
-      // 設定が読めなければ、記録のときに入荷タブを案内する
+      // 読めなければ、記録のときにもう一度読む
     }
   }
 
-  function openIncoming(form) {
+  async function recordIncoming(form) {
     const wine = form.dataset.wine;
+    if (sending.has(wine)) return;
     const bottles = Number(form.elements.bottles.value);
-    const date = $('incoming-date').value;
-    const recorderName = $('incoming-recorder').value;
-    const row = recorderRows[wine];
+    if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('入荷した本数を入れてください'); form.elements.bottles.focus(); return; }
+    if (!recorderRows[wine]) await loadWineIds();
+    const rowId = recorderRows[wine];
     const item = data.stock.items.find((i) => i.id === wine);
-    if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('入荷した本数を1〜9999で入力してください'); form.elements.bottles.focus(); return; }
-    if (!date) { toast('記入日を入れてください'); $('incoming-date').focus(); return; }
-    if (!row) { toast('この銘柄は瓶詰め記録の設定に見つかりません。入荷タブから記録してください'); return; }
-    pendingIncoming = { wine, rowId: row.id, bottles, date, recorderName, stockBefore: item ? item.stock : 0 };
-    $('incoming-preview').textContent = `入荷記録\n記入日: ${date}\n記入者: ${recorderName || '未入力'}\n\n${wine}｜${row.wineName || (item && item.name) || '（ワイン名未設定）'}: ${num(bottles)}本\n\nSlackと在庫管理シートに記録します。`;
-    $('incoming-error').hidden = true;
-    $('incoming-dialog').showModal();
-  }
-
-  async function sendIncoming() {
-    if (!pendingIncoming) return;
-    const button = $('incoming-confirm');
-    button.disabled = true;
-    button.textContent = '送信中…';
-    const sent = pendingIncoming;
+    failed.delete(wine);
+    if (!rowId) { failed.set(wine, 'この銘柄は瓶詰め記録の設定に見つかりません。入荷タブから記録してください'); renderStock(); return; }
+    sending.add(wine);
+    renderStock();
+    const date = todayKey();
     try {
       const response = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'incoming', date: sent.date, recorderName: sent.recorderName, notes: '', supplier: '', items: [{ id: sent.rowId, bottles: sent.bottles, itemNote: '' }] }),
+        body: JSON.stringify({ type: 'incoming', date, recorderName: '', notes: '', supplier: '', items: [{ id: rowId, bottles, itemNote: '' }] }),
       });
       const result = await response.json().catch(() => ({}));
-      if (!result.sheetsSaved) throw new Error(result.error || '記録の送信に失敗しました。');
-      $('incoming-dialog').close();
-      pendingIncoming = null;
-      drafts.delete(sent.wine);
-      recorded.set(sent.wine, { bottles: sent.bottles, date: sent.date, stockBefore: sent.stockBefore, at: Date.now() });
-      toast(result.ok ? `${sent.wine} の入荷 ${num(sent.bottles)}本 をSlackと在庫管理シートへ記録しました` : result.error);
-      renderStock();
+      if (!result.sheetsSaved) throw new Error(result.error || '記録できませんでした。もう一度押してください');
+      drafts.delete(wine);
+      recorded.set(wine, { bottles, date, stockBefore: item ? item.stock : 0, at: Date.now() });
+      toast(`${wine} の入荷 ${num(bottles)}本 を記録しました`);
       // ほかのタブの出荷ページにも知らせ、在庫シートへの反映を待って読み直す
       try { window.localStorage.setItem('stockChangedAt', `${Date.now()}:incoming`); } catch { /* 知らせられなくても読み直しは下で行う */ }
       [20, 60, 180].forEach((sec) => setTimeout(reload, sec * 1000));
     } catch (error) {
-      $('incoming-error').textContent = error.message || '記録の送信に失敗しました。';
-      $('incoming-error').hidden = false;
+      failed.set(wine, error.message || '記録できませんでした。もう一度押してください');
     } finally {
-      button.disabled = false;
-      button.textContent = '記録を送信する';
+      sending.delete(wine);
+      renderStock();
     }
   }
 
@@ -480,13 +465,8 @@
     const form = event.target.closest('.incoming-inline');
     if (!form) return;
     event.preventDefault();
-    openIncoming(form);
+    recordIncoming(form);
   });
-  $('incoming-recorder').addEventListener('change', () => {
-    try { window.localStorage.setItem('shipments.recorder', $('incoming-recorder').value); } catch { /* 次回また選べばよい */ }
-  });
-  $('incoming-cancel').addEventListener('click', () => { pendingIncoming = null; $('incoming-dialog').close(); });
-  $('incoming-confirm').addEventListener('click', sendIncoming);
   $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
   $('stock-card').addEventListener('toggle', (event) => {
@@ -530,6 +510,6 @@
   // 開きっぱなしでも、日付が変わったら自動で「これからの1週間」を更新する
   setInterval(() => { if (data && todayKey() !== data.today) { openWeeks.clear(); reload(); } }, 60 * 1000);
 
-  loadRecorders();
+  loadWineIds();
   reload();
 })();
