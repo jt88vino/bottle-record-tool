@@ -63,7 +63,8 @@ test('在庫でまかなえる件数を超える日が「足りなくなる日�
   assert.equal(r['vol.2-1'].level, 'urgent');
   assert.equal(r['vol.2-1'].need, 5);
   assert.equal(r['vol.2-1'].shortage, 3);
-  assert.equal(r['vol.2-1'].suggested, 9); // 5本 + 残す6本 − 在庫2本
+  assert.equal(r['vol.2-1'].shortage, 3); // 5本 − 在庫2本（在庫を残す分は足さない）
+  assert.equal(r['vol.2-1'].suggested, undefined);
 
   // B: 10/2(金) に尽きる → 到着期限 9/25(金) → 発注期限 9/23(水)。今日より前なので「至急」＋間に合わない注記
   assert.equal(r['vol.2-2'].runsOutOn, '2026-10-02');
@@ -220,7 +221,7 @@ test('至急は発注期限が明日までの出荷分に必ず必要な本数�
     .map(([date, count]) => ({ date, plans: [{ label: 'Vol.8', count }] }));
   const item = buildStockAlerts(days, [{ id: 'vol.8-4', name: 'K', stock: 0, price: null }], { today: '2026-10-01', factor: 7.5, smallBottles: { 'vol.8-4': 25 } }).items[0];
   assert.equal(item.level, 'urgent');
-  // 10/13 までの60件 − 小瓶25本 = 35本分 → ボトル5本（予備は足さない）
+  // 10/13 までの60件 − 小瓶25本 = 35本分 → ボトル5本（在庫を残す分は足さない）
   assert.equal(item.urgentNeed, 5);
   assert.equal(item.urgentUntil, '2026-10-13');
   assert.equal(item.urgentDeliveryUntil, '2026-10-14');

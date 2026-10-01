@@ -168,7 +168,7 @@
     } else {
       lines.push('<span>今後の出荷分は足りています</span>');
     }
-    // 結論：ワインボトル（750ml）を何本発注するか。サブスクの件数は前後するので、予備は持たず最小限にする。
+    // 結論：ワインボトル（750ml）を何本発注するか。サブスクの件数は前後するので、出荷に必要な最小限の本数にする。
     // 至急は「いま発注しないと間に合わない出荷分」だけ。月の分は至急に入れず、その発注期限までに発注すればよい
     const s = data.stock;
     const factor = s.factor || data.factor;
@@ -219,7 +219,7 @@
     card.open = readOpen();
     const loadedAt = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(data.fetchedAt));
     $('stock-meta').innerHTML = `在庫は ${loadedAt} に読み込み（入荷を記録すると自動で読み直します）・`
-      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・${s.smallBottlesSince ? `${md(s.smallBottlesSince)}以降に瓶詰めした小瓶も出荷に回して判定` : ''}${s.smallBottlesUnavailable ? '<b>出荷の記録を読めなかったため、今回は瓶詰め済みの小瓶を数えていません</b>' : ''}・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下も表示・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
+      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・${s.smallBottlesSince ? `${md(s.smallBottlesSince)}以降に瓶詰めした小瓶も出荷に回して判定` : ''}${s.smallBottlesUnavailable ? '<b>出荷の記録を読めなかったため、今回は瓶詰め済みの小瓶を数えていません</b>' : ''}・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下はお知らせだけ（発注の本数には足さない）・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
     if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));
@@ -243,7 +243,7 @@
 
   function stockOrderText() {
     const s = data.stock;
-    const lines = [`発注リスト（${md(s.today)}時点・届くまで${s.leadDays}日で計算・予備は含めない最小限の本数）`, '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。', ''];
+    const lines = [`発注リスト（${md(s.today)}時点・届くまで${s.leadDays}日で計算・出荷に必要な最小限の本数）`, '※予定の数です。最新の件数は長谷川さんからの依頼数を確認してください。', ''];
     const urgent = s.items.filter((i) => i.urgentNeed);
     if (urgent.length) {
       lines.push('■ 至急（いま発注しないと間に合わない分だけ）');
