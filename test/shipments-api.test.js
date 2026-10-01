@@ -16,7 +16,8 @@ let scheduleCsv = '';
 let stockCsv = '';
 let stockFails = false;
 global.fetch = async (url) => {
-  const isStock = String(url).includes('1oMgDnV4');
+  // 在庫と小瓶ロスは、瓶詰め記録のスプレッドシートに付けた Apps Script の窓口（JSON）から読む
+  const isStock = String(url).includes('script.google.com/macros');
   if (isStock && stockFails) return new Response('error', { status: 500 });
   return new Response(isStock ? stockCsv : scheduleCsv, { status: 200 });
 };
@@ -29,11 +30,11 @@ async function call(today) {
   return res.body;
 }
 const csv = (rows) => ['次回配送予定日,定期回数', ...rows].join('\n');
-const stock = (stockCount, bottled) => [
-  'プログラム在庫,,,,,,', ',,,,,,',
-  'プログラム,ワイン名,基準在庫,入荷累計,瓶詰め使用,販売出荷,現在在庫',
-  `vol.8-4,カヤ,19本,18本,${bottled}本,0本,${stockCount}本`,
-].join('\n');
+const stock = (stockCount, bottled, losses = []) => JSON.stringify({
+  ok: true,
+  stock: [{ id: 'vol.8-4', name: 'カヤ', base: 19, incoming: 18, bottled, sold: 0, stock: stockCount }],
+  losses,
+});
 
 test('注文が出て定期レポートから消えた分も、出荷日までは今後の出荷に入れる', async () => {
   stored = { deliveries: {} }; saves = 0; loadFails = false; stockFails = false;
@@ -86,4 +87,14 @@ test('連絡の数を訂正したら、台帳の記録も訂正した数にな�
   stockCsv = stock(0, 37);
   await call('2026-09-30');
   assert.equal(stored.deliveries['2026-10-02']['Vol.8'], require('../data/extra-deliveries.json').deliveries['2026-10-02']['Vol.8']);
+});
+
+test('シートの「小瓶ロス」に記録したロスを、瓶詰め済みの小瓶から引く', async () => {
+  stored = { deliveries: {} }; saves = 0; loadFails = false; stockFails = false;
+  scheduleCsv = csv(Array(3).fill('2026/10/20,7'));
+  stockCsv = stock(0, 37);
+  const without = (await call('2026-09-30')).stock.items.find((i) => i.id === 'vol.8-4').smallBottles;
+  stockCsv = stock(0, 37, [{ date: '2026-09-30', id: 'vol.8-4', count: 5 }, { date: '2026-09-28', id: 'vol.8-4', count: 9 }]);
+  const withLoss = (await call('2026-09-30')).stock.items.find((i) => i.id === 'vol.8-4').smallBottles;
+  assert.equal(without - withLoss, 5); // 9/28（起点より前）のロスは引かない
 });
