@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, dailyAverages, smallBottlesOnHand } = require('../lib/small-bottles');
+const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, usageRows, dailyAverages, smallBottlesOnHand } = require('../lib/small-bottles');
 const { buildSchedule, rowsFromCsv } = require('../lib/shipment-schedule');
 
 // 配送予定日（お客様に届く日）ごとの件数。Vol は前日（土日なら金曜）、PRO は27日に出荷
@@ -42,7 +42,7 @@ test('出荷日が起点〜昨日の件数をプランごとに合計する。�
   const c = consumedByPlan(ledger, '2026-09-29', '2026-10-02', { 'Vol.1': 130 });
   assert.equal(c['Vol.2'], 5 + 3);
   assert.equal(c.PRO, undefined);
-  assert.ok(Math.abs(c['Vol.1'] - (130 / 21.75) * 3) < 1e-9); // 9/29(火)・9/30(水)・10/1(木) の3平日
+  assert.equal(c['Vol.1'], 6 * 3); // 130÷21.75=5.98 → 1日6件 × 9/29(火)・9/30(水)・10/1(木) の3平日
   // 今日が起点なら、まだ何も使っていない
   assert.deepEqual(consumedByPlan(ledger, '2026-09-29', '2026-09-29', { 'Vol.1': 130 }), { 'Vol.1': 0 });
   // 10/28 には PRO(10/27出荷) も済んでいる
@@ -137,4 +137,28 @@ test('9/29 に瓶詰めしたカヤ（vol.8-4）の30本は小瓶225本。そこ
 
 test('PRO は在庫シートに瓶詰めが入らないので、小瓶を数えない', () => {
   assert.deepEqual(smallBottlesOnHand([{ id: 'Pro.1', bottled: 40 }], { bottledTotal: { 'Pro.1': 0 } }, 7.5, {}), {});
+});
+
+test('出荷日が過ぎた出荷を、出荷日・プラン・区分ごとに「小瓶を使った」記録にする', () => {
+  const ledger = {
+    deliveries: { '2026-10-01': { 'Vol.8': 75 }, '2026-10-05': { 'Vol.8': 10, PRO: 3 }, '2026-10-06': { 'Vol.8': 4 } },
+    estimates: { '2026-09-30': { 'Vol.8': 12 }, '2026-10-01': { 'Vol.8': 99 } }, // 10/1 は実数があるので見積もりは使わない
+  };
+  const rows = usageRows(ledger, '2026-09-29', '2026-10-06', { extraDates: ['2026-10-01'], forecasts: { 'Vol.1': 130 } });
+  assert.deepEqual(rows.map((r) => [r.shipDate, r.plan, r.kind, r.count]), [
+    ['2026-09-29', 'Vol.1', '見込み', 6],
+    ['2026-09-29', 'Vol.8', '見積もり', 12],   // 9/30着
+    ['2026-09-30', 'Vol.1', '見込み', 6],
+    ['2026-09-30', 'Vol.8', '連絡', 75],       // 10/1着
+    ['2026-10-01', 'Vol.1', '見込み', 6],
+    ['2026-10-02', 'Vol.1', '見込み', 6],
+    ['2026-10-02', 'Vol.8', 'レポート', 10],   // 10/5(月)着 → 10/2(金)出荷。PRO は 10/27 出荷でまだ
+    ['2026-10-05', 'Vol.1', '見込み', 6],
+    ['2026-10-05', 'Vol.8', 'レポート', 4],    // 10/6着 → 10/5出荷。今日 10/6 の出荷はまだ入れない
+  ]);
+});
+
+test('シートの「小瓶ロス」の本数を、瓶詰め済みの小瓶から引く', () => {
+  const baseline = { bottledTotal: { 'vol.8-4': 7 } };
+  assert.deepEqual(smallBottlesOnHand([{ id: 'vol.8-4', bottled: 37 }], baseline, 7.5, { 'Vol.8': 100 }, { 'vol.8-4': 5 }), { 'vol.8-4': 120 });
 });

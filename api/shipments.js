@@ -25,7 +25,11 @@ const LOW_STOCK = 6; // この本数以下なら知らせる
 const ARRIVE_DAYS_BEFORE = 7; // 出荷日当日では瓶詰めが間に合わないので、Vol は出荷日の1週間前までに届いている必要がある
 const PRO_ARRIVE_DAYS_BEFORE = 14; // PRO は出荷日（27日）の2週間前までに届いている必要がある
 // 定期レポートに出てこないプランの、月あたりの出荷の見込み（Vol.1 は新規のお客様向けで月平均130件）
-const FORECASTS = { 'Vol.1': 130 };
+const { FORECASTS } = require('../lib/forecasts');
+// 小瓶のロス：在庫管理シートの「小瓶ロス」タブ（入力はシートで行う）
+const { lossesFromCsv } = require('../lib/small-bottle-losses');
+const LOSS_GID = null;
+const LOSS_URL = LOSS_GID ? `https://docs.google.com/spreadsheets/d/${STOCK_ID}/export?format=csv&gid=${LOSS_GID}` : null;
 
 async function fetchCsv(url) {
   const response = await fetch(url, { redirect: 'follow' });
@@ -51,10 +55,11 @@ module.exports = async (request, response) => {
     return response.status(405).json({ error: 'GETで取得してください。' });
   }
   try {
-    const [scheduleCsv, stockResult, settings, ledger] = await Promise.all([
+    const [scheduleCsv, stockResult, lossResult, settings, ledger] = await Promise.all([
       fetchCsv(SHEET_URL),
       // 入荷を記録した直後でも最新の在庫を読めるよう、毎回別のURLにしてキャッシュを避ける
       fetchCsv(`${STOCK_URL}&t=${Date.now()}`).then((text) => ({ text }), (error) => ({ error })),
+      LOSS_URL ? fetchCsv(`${LOSS_URL}&t=${Date.now()}`).then((text) => ({ text }), (error) => ({ error })) : Promise.resolve({ text: null }),
       loadWineSettings(),
       loadLedger(),
     ]);
@@ -91,8 +96,18 @@ module.exports = async (request, response) => {
 
       // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す（起点の日〜昨日に出荷した分を台帳から引く）。
       // 台帳が読めないと出荷した分を引けず小瓶を多く数えてしまうので、その回は小瓶を数えない
+      // ロスが読めなければ、ロスは0として数える（画面に知らせる）
+      let losses = {};
+      let lossError = null;
+      try {
+        if (lossResult.error) throw lossResult.error;
+        if (lossResult.text) losses = lossesFromCsv(lossResult.text, start, today);
+      } catch (error) {
+        console.error('Small-bottle losses unavailable:', error.message);
+        lossError = 'シートの「小瓶ロス」を読めなかったため、今回はロスを引いていません';
+      }
       const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
-        consumedByPlan(ledger, start, today, FORECASTS));
+        consumedByPlan(ledger, start, today, FORECASTS), losses);
 
       stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
@@ -101,6 +116,7 @@ module.exports = async (request, response) => {
       });
       stock.smallBottlesSince = ledger.loadFailed ? null : start;
       stock.smallBottlesUnavailable = Boolean(ledger.loadFailed);
+      stock.lossError = lossError;
       stock.source = `https://docs.google.com/spreadsheets/d/${STOCK_ID}/edit#gid=${STOCK_GID}`;
     } catch (error) {
       console.error('Stock alerts failed:', error.message);
