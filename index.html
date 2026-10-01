@@ -57,7 +57,7 @@
 
       <form id="incoming-form" hidden novalidate>
         <div id="incoming-panel" role="tabpanel" aria-labelledby="incoming-tab">
-          <section class="card details-card"><h2>1. 記入日・記入者を入力</h2><div class="field-grid"><label class="date-field" for="incoming-date"><span>記入日</span><input id="incoming-date" type="date" required /></label><label class="date-field" for="incoming-recorder"><span>記入者名</span><select id="incoming-recorder" required><option value="">選択してください</option></select></label></div></section>
+          <section class="card details-card"><h2>1. 記入日・記入者を入力</h2><div class="field-grid"><label class="date-field" for="incoming-date"><span>記入日</span><input id="incoming-date" type="date" required /></label><label class="date-field" for="incoming-recorder"><span>記入者名（任意）</span><select id="incoming-recorder"><option value="">未入力のまま記録できます</option></select></label></div></section>
           <section class="card"><div class="section-heading"><div><h2>2. 入荷したワインを入力</h2><p>本数を入力した銘柄だけ記録します。銘柄名の下にインポーターを表示しています。</p></div></div><div id="incoming-volume-groups" class="volume-groups"></div></section>
           <section class="summary incoming-summary" aria-live="polite"><div><span>入荷本数 合計</span><strong><output id="incoming-total-bottles">0</output><small>本</small></strong></div><div><span>入荷銘柄数</span><strong><output id="incoming-total-wines">0</output><small>銘柄</small></strong></div></section>
           <section class="card incoming-card"><label>仕入先／納品元（任意）<input id="incoming-supplier" type="text" maxlength="180" placeholder="例：〇〇ワイン" /></label></section>

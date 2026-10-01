@@ -286,10 +286,9 @@
     const item = data.stock.items.find((i) => i.id === wine);
     if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('入荷した本数を1〜9999で入力してください'); form.elements.bottles.focus(); return; }
     if (!date) { toast('記入日を入れてください'); $('incoming-date').focus(); return; }
-    if (!recorderName) { toast('記入者を選んでください'); $('incoming-recorder').focus(); return; }
     if (!row) { toast('この銘柄は瓶詰め記録の設定に見つかりません。入荷タブから記録してください'); return; }
     pendingIncoming = { wine, rowId: row.id, bottles, date, recorderName, stockBefore: item ? item.stock : 0 };
-    $('incoming-preview').textContent = `入荷記録\n記入日: ${date}\n記入者: ${recorderName}\n\n${wine}｜${row.wineName || (item && item.name) || '（ワイン名未設定）'}: ${num(bottles)}本\n\nSlackと在庫管理シートに記録します。`;
+    $('incoming-preview').textContent = `入荷記録\n記入日: ${date}\n記入者: ${recorderName || '未入力'}\n\n${wine}｜${row.wineName || (item && item.name) || '（ワイン名未設定）'}: ${num(bottles)}本\n\nSlackと在庫管理シートに記録します。`;
     $('incoming-error').hidden = true;
     $('incoming-dialog').showModal();
   }

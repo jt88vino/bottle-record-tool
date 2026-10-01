@@ -22,7 +22,9 @@ module.exports = async (request, response) => {
   const notesOnly = type === 'bottling' && Array.isArray(items) && items.length === 0 && notes.trim().length > 0;
   if (!Array.isArray(items) || items.length > MAX_ITEMS || (items.length < 1 && !notesOnly)) return badRequest(response, type === 'bottling' ? '使用本数または備考を入力してください。' : type === 'shipping' ? '出荷したワインと本数を入力してください。' : 'ワインの入力内容が正しくありません。');
   if (typeof supplier !== 'string' || supplier.length > 180) return badRequest(response, '仕入先は180文字以内で入力してください。');
-  if (typeof recorderName !== 'string' || !recorderName.trim() || recorderName.trim().length > 60) return badRequest(response, '記入者名を1〜60文字で入力してください。');
+  // 入荷は記入者を空欄でもよい（牛嶋さん指定）。シートの Apps Script は記入者を必須にしているので、空欄は「未入力」として送る
+  if (typeof recorderName !== 'string' || recorderName.trim().length > 60 || (type !== 'incoming' && !recorderName.trim())) return badRequest(response, type === 'incoming' ? '記入者名は60文字以内で入力してください。' : '記入者名を1〜60文字で入力してください。');
+  const recorder = recorderName.trim() || '未入力';
 
   const config = await loadConfig();
   const itemLabels = new Map(config.groups.flatMap((group) => group.rows.map((row) => [row.id, row])));
@@ -46,10 +48,10 @@ module.exports = async (request, response) => {
         : `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`)
     .join('\n') || '• 本数入力なし（備考のみの記録）';
   const message = type === 'incoming'
-    ? `*入荷記録*\n*記入日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*入荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${supplier.trim() ? `\n*仕入先*: ${supplier.trim()}` : ''}${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
+    ? `*入荷記録*\n*記入日*: ${date}\n*記入者*: ${recorder}\n\n*入荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${supplier.trim() ? `\n*仕入先*: ${supplier.trim()}` : ''}${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
     : type === 'shipping'
-      ? `*ボトル販売出荷記録*\n*出荷日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*出荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
-      : `*${config.title}*\n*作業日*: ${date}\n*記入者*: ${recorderName.trim()}\n\n*使用ワイン*\n${itemLines}\n\n*合計*: 使用 ${formatNumber(totalBottles)}本 / 小瓶 ${formatNumber(totalBottles * config.smallBottleFactor)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`;
+      ? `*ボトル販売出荷記録*\n*出荷日*: ${date}\n*記入者*: ${recorder}\n\n*出荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
+      : `*${config.title}*\n*作業日*: ${date}\n*記入者*: ${recorder}\n\n*使用ワイン*\n${itemLines}\n\n*合計*: 使用 ${formatNumber(totalBottles)}本 / 小瓶 ${formatNumber(totalBottles * config.smallBottleFactor)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`;
 
   const sheetsUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
   const sheetsSecret = process.env.GOOGLE_SHEETS_SYNC_SECRET;
@@ -61,7 +63,7 @@ module.exports = async (request, response) => {
     const sheetResponse = await fetch(sheetsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type, date, items: sheetItems, notes: notes.trim(), supplier: supplier.trim(), recorderName: recorderName.trim(), secret: sheetsSecret }),
+      body: JSON.stringify({ type, date, items: sheetItems, notes: notes.trim(), supplier: supplier.trim(), recorderName: recorder, secret: sheetsSecret }),
     });
     const sheetResult = await sheetResponse.json().catch(() => ({}));
     if (!sheetResponse.ok || !sheetResult.ok) throw new Error(sheetResult.error || `Google Sheets returned ${sheetResponse.status}`);

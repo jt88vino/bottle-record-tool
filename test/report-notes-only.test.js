@@ -124,4 +124,27 @@ test('瓶詰め記録の入力条件', async (t) => {
     assert.equal(response.statusCode, 400);
     assert.equal(fetchCount, 0);
   });
+
+  await t.test('入荷は記入者が空欄でも記録でき、シートとSlackには「未入力」と送る', async () => {
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      if (url.includes('/sheets')) return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      return { ok: true, status: 200 };
+    };
+    const response = makeResponse();
+    await reportHandler({ method: 'POST', body: { type: 'incoming', date: '2026-10-01', recorderName: '', items: [{ id: 'vol-1', bottles: 3 }] } }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(JSON.parse(calls[0].options.body).recorderName, '未入力');
+    assert.match(JSON.parse(calls[1].options.body).text, /\*記入者\*: 未入力/);
+  });
+
+  await t.test('瓶詰めと販売出荷は、これまでどおり記入者が必要', async () => {
+    global.fetch = async () => { throw new Error('送らない'); };
+    for (const type of ['bottling', 'shipping']) {
+      const response = makeResponse();
+      await reportHandler({ method: 'POST', body: { type, date: '2026-10-01', recorderName: '  ', items: [{ id: 'vol-1', bottles: 3 }] } }, response);
+      assert.equal(response.statusCode, 400);
+    }
+  });
 });
