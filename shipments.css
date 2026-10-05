@@ -15,6 +15,8 @@ body.theme-ship {
   --ship-shadow: rgba(11, 63, 69, .08);
   background: linear-gradient(140deg, #e2eeef 0%, var(--cream) 42%, #e5eeeb 100%);
 }
+/* hidden を付けた要素は、display を指定したクラスより優先して隠す（週ごと/日付ごとの切り替えなど） */
+[hidden] { display: none !important; }
 body.theme-ship .card { background: rgba(255, 255, 255, .94); box-shadow: 0 8px 30px var(--ship-shadow); }
 body.theme-ship .summary { box-shadow: 0 10px 25px rgba(11, 63, 69, .2); }
 body.theme-ship .summary span { color: #d3ecec; }
@@ -29,8 +31,20 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .ship-summary .peak-count { margin: 4px 0 0; color: white; font-size: 13px; font-weight: 800; }
 .ship-summary > div:first-child { background: rgba(255, 255, 255, .08); }
 
+/* 見出し：タイトル・注意書き・読み込み時刻をまとめて小さく */
+.ship-head { margin: 12px 0 12px; }
+.ship-head h1 { margin: 0 0 8px; font-size: 24px; text-align: center; }
+.ship-head .ship-toolbar { margin-bottom: 0; }
+
+/* 出荷件数 / 発注アラート の切り替え（スクロールしても上に残す） */
+.page-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 0 0 14px; padding: 4px; border-radius: 14px; background: var(--wine-dark); box-shadow: 0 6px 16px rgba(11, 63, 69, .18); }
+.page-tab { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border: 0; border-radius: 11px; color: rgba(255, 255, 255, .82); background: transparent; font-size: 15px; font-weight: 900; cursor: pointer; }
+.page-tab.active { color: var(--wine-dark); background: #fff; }
+.tab-badge { padding: 1px 7px; border-radius: 999px; color: #7a2e0e; background: #fcd9bd; font-size: 11.5px; font-weight: 900; }
+.tab-badge.is-urgent { color: #fff; background: #b42318; }
+
 /* 注意書き */
-.ship-notice { margin: -8px auto 18px; padding: 11px 14px; border-left: 4px solid var(--accent); border-radius: 10px; color: #6b4a12; background: #fdf3e1; font-size: 13.5px; font-weight: 700; line-height: 1.6; }
+.ship-notice { margin: 0 0 8px; padding: 7px 12px; border-left: 4px solid var(--accent); border-radius: 10px; color: #6b4a12; background: #fdf3e1; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
 
 .plan-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .plan-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--ship-soft); color: var(--ink); font-size: 13px; font-weight: 800; white-space: nowrap; }
@@ -116,14 +130,8 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .copy-order { margin-top: 14px; }
 
 /* 発注アラート */
-.stock-card { padding: 0; border: 2px solid #f0c8c0; }
-.stock-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 16px 20px; cursor: pointer; list-style: none; }
-.stock-summary::-webkit-details-marker { display: none; }
-.stock-summary::after { content: '▶'; margin-left: auto; color: var(--muted); font-size: 11px; transition: transform .15s; }
-.stock-card[open] > .stock-summary::after { transform: rotate(90deg); }
-.stock-title { font-size: 18px; font-weight: 900; }
-.stock-summary .stock-counts { margin: 0; }
-.stock-body { padding: 0 20px 20px; }
+.stock-card { padding: 16px; border: 2px solid #f0c8c0; }
+.stock-card .stock-counts { margin-bottom: 8px; }
 .stock-meta { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; font-weight: 700; line-height: 1.6; }
 .stock-record { margin-left: auto; color: var(--wine); font-size: 12.5px; font-weight: 800; white-space: nowrap; }
 .stock-meta a { color: var(--wine); }
@@ -180,6 +188,25 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .stock-notes { margin: 4px 0 0; padding-left: 1.1em; color: #9a6410; font-size: 12px; font-weight: 700; }
 #stock-copy { margin-top: 12px; }
 
+/* 1銘柄＝名前・発注する本数・入荷の記録の3行。根拠は「くわしく」 */
+.stock-needs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.need { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 800; }
+.need b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.need small { margin-left: 4px; font-size: 11.5px; font-weight: 700; opacity: .85; }
+.need.is-urgent { color: #fff; background: #b42318; }
+.need.is-month { color: #0f4c4f; background: #e6f2f2; }
+.need.is-low { color: #7a4f0d; background: #fdf3e2; }
+.need.is-ok { color: #1f5e3a; background: #eaf5ee; }
+.need.is-warn { color: #9a3412; background: #fff1e6; border: 1px solid #fdba74; }
+.stock-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.stock-actions .incoming-inline { flex: 1; margin: 0; padding: 0; border: 0; }
+.more-toggle { flex: none; margin-left: auto; padding: 6px 2px; border: 0; color: var(--wine); background: none; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.more-toggle::after { content: ' ▸'; }
+.more-toggle[aria-expanded="true"]::after { content: ' ▾'; }
+.stock-more { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: #f6f9f9; }
+.stock-more .stock-when { display: block; margin: 0; font-size: 12.5px; }
+.stock-why { margin: 2px 0 0; font-size: 12.5px; font-weight: 700; }
+
 /* 発注アラートから入荷を記録 */
 .incoming-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; padding-top: 8px; border-top: 1px dotted var(--line); }
 .incoming-inline label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 800; }
@@ -190,7 +217,10 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 .incoming-submit:disabled { opacity: .6; cursor: wait; }
 .incoming-error { flex-basis: 100%; margin: 2px 0 0; color: #b42318; font-size: 12px; font-weight: 800; }
 
-.ship-rules ul { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.ship-rules { padding: 0; }
+.ship-rules > summary { color: var(--wine); }
+.ship-rules > ul { margin: 0; padding: 0 18px 16px 2.2em; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.ship-rules ul ul { padding-left: 1.2em; }
 
 @media (max-width: 560px) {
   .stock-math > div { grid-template-columns: 1fr; gap: 0; }
@@ -205,8 +235,6 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
   .plan-table { font-size: 13px; }
   .plan-table th, .plan-table td { padding: 7px 6px; }
   .wine-group li { grid-template-columns: 1fr auto; }
-  .stock-summary { padding: 14px; }
-  .stock-body { padding: 0 14px 14px; }
   .stock-name { flex-wrap: wrap; }
   .wine-id { grid-column: 1 / -1; font-size: 11px; }
   .ship-date .md { font-size: 20px; }
@@ -215,4 +243,4 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 
 /* 共通の summary::after（＋/−）がトグルの印とぶつからないようにする */
 .week-toggle > summary::after, .week-toggle[open] > summary::after { content: none; }
-.stock-card[open] > .stock-summary::after, .stock-group[open] > summary::after { content: '▶'; }
+.stock-group[open] > summary::after { content: '▶'; }

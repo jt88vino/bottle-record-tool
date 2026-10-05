@@ -72,6 +72,7 @@ test('在庫でまかなえる件数を超える日が「足りなくなる日�
   assert.equal(r['vol.2-2'].orderBy, '2026-09-23');
   assert.equal(r['vol.2-2'].level, 'urgent');
   assert.match(r['vol.2-2'].notes.join(), /期限を過ぎています/);
+  assert.deepEqual(r['vol.2-2'].warnings, ['発注期限切れ']);
 
   assert.equal(r['vol.2-3'].level, 'ok');
   assert.equal(r['vol.2-3'].runsOutOn, null);
@@ -90,6 +91,7 @@ test('出荷予定がなくても、6本以下なら知らせる。マイナス�
   assert.equal(r['vol.1-2'].level, 'ok');
   assert.equal(r['vol.12-3'].level, 'low');
   assert.match(r['vol.12-3'].notes.join(), /マイナス/);
+  assert.ok(r['vol.12-3'].warnings.includes('在庫マイナス'));
 });
 
 test('今日より前の出荷は数えない。並びは 至急 → 今週中 → その後 → 残り少ない → OK', () => {

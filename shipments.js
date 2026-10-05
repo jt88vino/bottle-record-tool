@@ -150,60 +150,54 @@
   }
 
   // ── 発注アラート ─────────────────────────────
-  const OPEN_KEY = 'shipments.stockOpen';
-  function readOpen() { try { return window.localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } }
-  function saveOpen(open) { try { window.localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* 保存できなくても表示には影響しない */ } }
+  const openMore = new Set(); // 「くわしく」を開いた銘柄（自動の読み直しでも開いたまま）
 
   const LEVELS = {
-    urgent: { label: '至急', title: '至急：発注期限が明日まで', open: true },
+    urgent: { label: '至急', title: '発注期限が明日まで', open: true },
     soon: { label: '今週中', title: '今週中に発注', open: true },
-    later: { label: 'その後', title: '今後、発注が必要', open: true },
-    low: { label: '残り少ない', title: `在庫が少ない（出荷分は足りている）`, open: true },
-    ok: { label: '問題なし', title: '問題なし', open: false },
+    later: { label: 'その後', title: '今後必要', open: true },
+    low: { label: '残り少ない', title: '在庫が少ない（出荷分はある）', open: true },
+    ok: { label: '問題なし', title: '発注不要', open: false },
   };
 
   function wineRow(item) {
     const name = item.name || '（銘柄未設定）';
-    const lines = [];
-    if (item.runsOutOn) {
-      const arrive = item.arriveBy && item.arriveBy !== item.runsOutOn
-        ? `<span>到着期限 ${md(item.arriveBy)}(${esc(item.arriveByWeekday)})</span>` : '';
-      lines.push(`<span>${md(item.runsOutOn)}(${esc(item.runsOutWeekday)})${item.forecast ? 'ごろ' : ''}に足りなくなる</span>${arrive}<span class="deadline">発注期限 ${md(item.orderBy)}(${esc(item.orderByWeekday)})</span>`);
-    } else if (!item.shipments) {
-      lines.push('<span>今後の出荷予定はありません</span>');
-    } else {
-      lines.push('<span>今後の出荷分は足りています</span>');
-    }
-    // 結論：ワインボトル（750ml）を何本発注するか。サブスクの件数は前後するので、出荷に必要な最小限の本数にする。
-    // 至急は「いま発注しないと間に合わない出荷分」だけ。月の分は至急に入れず、その発注期限までに発注すればよい
     const s = data.stock;
     const factor = s.factor || data.factor;
-    const orders = [];
-    if (item.urgentNeed) {
-      const until = `${md(item.urgentUntil)}(${esc(item.urgentUntilWeekday)})の出荷${item.urgentDeliveryUntil ? `（${md(item.urgentDeliveryUntil)}着）` : ''}分まで`;
-      orders.push(`<p class="stock-verdict is-order"><span class="verdict-tag">至急</span>ワインボトル（750ml） <b>${num(item.urgentNeed)}本</b><small>${until}に必ず必要な本数だけです。今日〜明日に発注してください</small></p>`);
-    }
-    (item.monthNeeds || []).forEach((m) => {
-      orders.push(`<p class="stock-verdict is-month"><span class="verdict-tag">${esc(monthLabel(m.month).replace(/^\d+年/, ''))}に必要</span>ワインボトル（750ml） <b>${num(m.bottles)}本</b><small>${item.urgentNeed ? '至急とは別に、' : ''}${md(m.from)}(${esc(m.fromWeekday)})の出荷分から必要・発注期限 ${md(m.orderBy)}(${esc(m.orderByWeekday)})</small></p>`);
-    });
-    let verdict = orders.join('');
-    if (!orders.length) {
-      verdict = item.level === 'low'
-        ? `<p class="stock-verdict is-low">出荷分は足りています（在庫が ${num(item.stock)}本 と少なくなっています）</p>`
-        : '<p class="stock-verdict is-ok">発注は不要です</p>';
-    }
+    const day = (key, weekday) => `${md(key)}(${esc(weekday || wd(key))})`;
+    // 結論だけを1行に：ワインボトル（750ml）を何本発注するか。サブスクの件数は前後するので、出荷に必要な最小限の本数。
+    // 至急は「いま発注しないと間に合わない出荷分」だけ。月の分は至急に入れず、その発注期限までに発注すればよい
+    const needs = [];
+    if (item.urgentNeed) needs.push(`<span class="need is-urgent">至急 <b>${num(item.urgentNeed)}本</b></span>`);
+    (item.monthNeeds || []).forEach((m) => needs.push(`<span class="need is-month">${Number(m.month.slice(5))}月 <b>${num(m.bottles)}本</b><small>期限 ${day(m.orderBy, m.orderByWeekday)}</small></span>`));
+    if (!needs.length) needs.push(item.level === 'low' ? `<span class="need is-low">在庫 <b>${num(item.stock)}本</b></span>` : '<span class="need is-ok">発注不要</span>');
+    (item.warnings || []).forEach((w) => needs.push(`<span class="need is-warn">⚠ ${esc(w)}</span>`));
+    // くわしく：足りなくなる日と期限、本数の根拠、小瓶にそろえた内訳
+    const when = item.runsOutOn
+      ? `${day(item.runsOutOn, item.runsOutWeekday)}${item.forecast ? 'ごろ' : ''}に足りなくなる${item.arriveBy && item.arriveBy !== item.runsOutOn ? `・到着期限 ${day(item.arriveBy, item.arriveByWeekday)}` : ''}・発注期限 ${day(item.orderBy, item.orderByWeekday)}`
+      : (item.shipments ? '今後の出荷分は足りています' : '今後の出荷予定はありません');
+    const why = [];
+    if (item.urgentNeed) why.push(`至急：${day(item.urgentUntil, item.urgentUntilWeekday)}の出荷${item.urgentDeliveryUntil ? `（${md(item.urgentDeliveryUntil)}着）` : ''}分まで`);
+    (item.monthNeeds || []).forEach((m) => why.push(`${Number(m.month.slice(5))}月：${day(m.from, m.fromWeekday)}の出荷分から`));
     // 内訳：出荷1件で小瓶1本を使うので、小瓶の本数にそろえて比べる
     const period = item.forecast ? '今後1か月の出荷（見込み）' : `${md(s.horizonEnd)}(${wd(s.horizonEnd)})までの出荷`;
     const stockSmall = Math.max(item.stock, 0) * factor;
     const shortSmall = Math.max(0, Math.ceil(item.shipments - item.smallBottles - stockSmall - 1e-9));
     const math = item.shipments ? `<dl class="stock-math">
-        <div><dt>${period}</dt><dd>${num(item.shipments)}件 → 小瓶 <b>${num(item.shipments)}本</b> が必要</dd></div>
+        <div><dt>${period}</dt><dd>${num(item.shipments)}件 → 小瓶 <b>${num(item.shipments)}本</b></dd></div>
         <div><dt>瓶詰め済みの小瓶</dt><dd><b>${num(item.smallBottles)}本</b>${item.plan === 'PRO' ? '（PRO は数えていません）' : ''}</dd></div>
         <div><dt>ワインボトルの在庫</dt><dd><b>${num(item.stock)}本</b>（小瓶 ${num(stockSmall)}本分）</dd></div>
         <div class="${shortSmall ? 'is-short' : 'is-enough'}"><dt>${shortSmall ? '足りない分' : '差し引き'}</dt><dd>${shortSmall
-          ? `小瓶 <b>${num(shortSmall)}本</b>分 ＝ ワインボトル <b>${num(item.shortage)}本</b>（小瓶${num(factor)}本でボトル1本）`
-          : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall - item.shipments))}本分あまる`}</dd></div>
-      </dl>` : `<p class="stock-math-none">今後の出荷予定はありません・ワインボトルの在庫 ${num(item.stock)}本</p>`;
+          ? `小瓶 <b>${num(shortSmall)}本</b> ＝ ボトル <b>${num(item.shortage)}本</b>`
+          : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall - item.shipments))}本あまる`}</dd></div>
+      </dl>` : `<p class="stock-math-none">ワインボトルの在庫 ${num(item.stock)}本</p>`;
+    const open = openMore.has(item.id);
+    const more = `<div class="stock-more"${open ? '' : ' hidden'}>
+        <p class="stock-when">${when}</p>
+        ${why.map((t) => `<p class="stock-why">${t}</p>`).join('')}
+        ${math}
+        ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      </div>`;
     // 入荷の記録（入荷タブと同じく Slack と在庫管理シートへ）
     const done = recorded.get(item.id);
     if (done && (item.stock >= done.stockBefore + done.bottles || Date.now() - done.at > 15 * 60 * 1000)) recorded.delete(item.id);
@@ -213,16 +207,14 @@
     const record = item.level === 'ok' ? '' : `<form class="incoming-inline" data-wine="${esc(item.id)}">
         <label><span>入荷</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数"${busy ? ' disabled' : ''} /><span>本</span></label>
         <button class="incoming-submit" type="submit"${busy ? ' disabled' : ''}>${busy ? '記録中…' : '記録'}</button>
-        ${stillDone ? `<p class="incoming-done">入荷 ${num(stillDone.bottles)}本 を記録しました（在庫への反映に数分かかります）</p>` : ''}
+        ${stillDone ? `<p class="incoming-done">入荷 ${num(stillDone.bottles)}本を記録しました（反映まで数分）</p>` : ''}
         ${error ? `<p class="incoming-error">${esc(error)}</p>` : ''}
       </form>`;
     return `<li class="stock-item level-${item.level}">
       <div class="stock-name"><span class="stock-id">${esc(item.id)}</span><span>${esc(name)}</span></div>
-      <div class="stock-when">${lines.join('')}</div>
-      ${verdict}
-      ${math}
-      ${item.notes.length ? `<ul class="stock-notes">${item.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-      ${record}
+      <div class="stock-needs">${needs.join('')}</div>
+      <div class="stock-actions">${record}<button class="more-toggle" type="button" data-wine="${esc(item.id)}" aria-expanded="${open}">くわしく</button></div>
+      ${more}
     </li>`;
   }
 
@@ -231,14 +223,18 @@
     $('stock-error').hidden = true;
     if (!data.stock) {
       card.hidden = true;
+      $('alert-badge').hidden = true;
       if (data.stockError) { $('stock-error').textContent = data.stockError; $('stock-error').hidden = false; }
       return;
     }
     const s = data.stock;
-    card.open = readOpen();
     const loadedAt = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(data.fetchedAt));
-    $('stock-meta').innerHTML = `在庫は ${loadedAt} に読み込み（入荷を記録すると自動で読み直します）・`
-      + `今日 ${md(s.today)}(${wd(s.today)}) から ${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'} の出荷分で判定・出荷日の${s.arriveDaysBefore}日前（PROは${s.proArriveDaysBefore}日前）までに到着・${s.smallBottlesSince ? `${md(s.smallBottlesSince)}以降に瓶詰めした小瓶も出荷に回して判定` : ''}${s.smallBottlesUnavailable ? '<b>出荷の記録を読めなかったため、今回は瓶詰め済みの小瓶を数えていません</b>' : ''}・発注から届くまで${s.leadDays}日・在庫${s.lowStock}本以下はお知らせだけ（発注の本数には足さない）・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`;
+    $('stock-meta').innerHTML = `在庫 ${loadedAt} 時点・${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'}までの出荷で判定・本数はワインボトル（750ml）・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`
+      + (s.smallBottlesUnavailable ? '<br><b>出荷の記録を読めず、今回は瓶詰め済みの小瓶を数えていません</b>' : '');
+    const badge = $('alert-badge');
+    badge.textContent = s.counts.urgent ? `至急${s.counts.urgent}` : s.counts.soon ? `今週${s.counts.soon}` : '';
+    badge.classList.toggle('is-urgent', !!s.counts.urgent);
+    badge.hidden = !(s.counts.urgent || s.counts.soon);
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
     if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));
@@ -444,6 +440,30 @@
     }
   }
 
+  // 出荷件数 / 発注アラート の切り替え。最後に見た方を覚えておく（#alert・#count でも開ける）
+  const PAGE_KEY = 'shipments.page';
+  let page = 'count';
+  try { page = window.localStorage.getItem(PAGE_KEY) === 'alert' ? 'alert' : 'count'; } catch { /* 覚えていなければ出荷件数 */ }
+  if (window.location.hash === '#alert' || window.location.hash === '#count') page = window.location.hash.slice(1);
+  function applyPage() {
+    document.querySelectorAll('.page-tab').forEach((tab) => {
+      const active = tab.dataset.page === page;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+    $('page-count').hidden = page !== 'count';
+    $('page-alert').hidden = page !== 'alert';
+  }
+  document.querySelectorAll('.page-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      page = tab.dataset.page;
+      applyPage();
+      try { window.localStorage.setItem(PAGE_KEY, page); } catch { /* 覚えられなくても切り替えはできる */ }
+      window.history.replaceState(null, '', `#${page}`);
+    });
+  });
+  applyPage();
+
   document.querySelectorAll('.ship-view-tab').forEach((tab) => {
     tab.addEventListener('click', () => { view = tab.dataset.view; applyView(); });
   });
@@ -469,8 +489,16 @@
   });
   $('stock-copy').addEventListener('click', () => copyText(stockOrderText(), '発注リストをコピーしました'));
 
+  $('stock-groups').addEventListener('click', (event) => {
+    const button = event.target.closest('.more-toggle');
+    if (!button) return;
+    const more = button.closest('.stock-item').querySelector('.stock-more');
+    const open = more.hidden;
+    more.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    if (open) openMore.add(button.dataset.wine); else openMore.delete(button.dataset.wine);
+  });
   $('stock-card').addEventListener('toggle', (event) => {
-    if (event.target === $('stock-card')) saveOpen($('stock-card').open);
     const group = event.target.closest && event.target.closest('details.stock-group');
     if (group && event.target === group && openLevels) {
       if (group.open) openLevels.add(group.dataset.level); else openLevels.delete(group.dataset.level);

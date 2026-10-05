@@ -15,55 +15,55 @@
         <a class="app-switch-item" href="https://hw-kintai-v2.vercel.app/">⏱ 勤怠管理</a>
         <span class="app-switch-item is-current" aria-current="page">📦 今後の出荷件数</span>
       </nav>
-      <section class="hero" aria-labelledby="page-title">
-        <p class="eyebrow">WINE OPERATIONS</p>
+      <header class="ship-head">
         <h1 id="page-title">今後の出荷件数</h1>
-        <p>定期便の次回配送予定日（お客様に届く日）から、出荷の件数と必要なワインの本数をまとめています。</p>
-      </section>
-
-      <p class="ship-notice" role="note">※予定の数で、確定ではありません。最新の件数は長谷川さんからの依頼数を確認してください。</p>
-
-      <div class="ship-toolbar">
-        <p id="ship-status" class="ship-status" aria-live="polite">読み込み中です…</p>
-        <div class="ship-toolbar-actions">
-          <a id="ship-source" class="ship-source" href="#" target="_blank" rel="noopener" hidden>元のスプレッドシート</a>
-          <button id="ship-reload" class="history-refresh" type="button">再読み込み</button>
+        <p class="ship-notice" role="note">※予定の数です。確定は長谷川さんの依頼数で確認してください。</p>
+        <div class="ship-toolbar">
+          <p id="ship-status" class="ship-status" aria-live="polite">読み込み中です…</p>
+          <div class="ship-toolbar-actions">
+            <a id="ship-source" class="ship-source" href="#" target="_blank" rel="noopener" hidden>元のシート</a>
+            <button id="ship-reload" class="history-refresh" type="button">再読み込み</button>
+          </div>
         </div>
-      </div>
+      </header>
       <div id="ship-error" class="form-error" role="alert" hidden></div>
 
-      <details id="stock-card" class="card stock-card" hidden>
-        <summary class="stock-summary">
-          <span class="stock-title">🔔 発注アラート</span>
-          <span id="stock-counts" class="stock-counts"></span>
-        </summary>
-        <div class="stock-body">
-          <p id="stock-meta" class="stock-meta"></p>
-          <div id="stock-groups" class="stock-groups"></div>
-          <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中に発注する分をコピー</button>
-        </div>
-      </details>
-      <div id="stock-error" class="form-error" role="alert" hidden></div>
-
-      <section id="ship-summary" class="summary ship-summary" aria-live="polite" hidden>
-        <div><span>これからの1週間</span><strong><output id="sum-week">0</output><small>件</small></strong><span id="sum-week-sub" class="peak-count"></span></div>
-        <div><span>必要なワイン（1週間）</span><strong><output id="sum-week-bottles">0</output><small>本</small></strong></div>
-        <div><span>出荷件数 合計</span><strong><output id="sum-total">0</output><small>件</small></strong></div>
-        <div><span>必要なワイン 合計</span><strong><output id="sum-bottles">0</output><small>本</small></strong><span id="sum-bottles-sub" class="peak-count"></span></div>
-      </section>
-
-      <div class="ship-view-tabs" role="tablist" aria-label="表示の切り替え" hidden id="ship-view-tabs">
-        <button class="ship-view-tab active" type="button" role="tab" aria-selected="true" data-view="week">週ごと</button>
-        <button class="ship-view-tab" type="button" role="tab" aria-selected="false" data-view="day">日付ごと</button>
+      <div class="page-tabs" role="tablist" aria-label="表示の切り替え">
+        <button id="tab-count" class="page-tab active" type="button" role="tab" aria-selected="true" aria-controls="page-count" data-page="count">📦 出荷件数</button>
+        <button id="tab-alert" class="page-tab" type="button" role="tab" aria-selected="false" aria-controls="page-alert" data-page="alert">🔔 発注アラート<span id="alert-badge" class="tab-badge" hidden></span></button>
       </div>
 
-      <section id="ship-weeks" class="ship-weeks" aria-label="週ごとの件数"></section>
-      <section id="ship-list" class="ship-list" aria-label="出荷日ごとの件数" hidden></section>
+      <section id="page-count" role="tabpanel" aria-labelledby="tab-count">
+        <section id="ship-summary" class="summary ship-summary" aria-live="polite" hidden>
+          <div><span>これからの1週間</span><strong><output id="sum-week">0</output><small>件</small></strong><span id="sum-week-sub" class="peak-count"></span></div>
+          <div><span>必要なワイン（1週間）</span><strong><output id="sum-week-bottles">0</output><small>本</small></strong></div>
+          <div><span>出荷件数 合計</span><strong><output id="sum-total">0</output><small>件</small></strong></div>
+          <div><span>必要なワイン 合計</span><strong><output id="sum-bottles">0</output><small>本</small></strong><span id="sum-bottles-sub" class="peak-count"></span></div>
+        </section>
 
-      <section id="ship-months" class="ship-months" aria-label="月ごとの合計と発注本数"></section>
+        <div class="ship-view-tabs" role="tablist" aria-label="週ごと・日付ごとの切り替え" hidden id="ship-view-tabs">
+          <button class="ship-view-tab active" type="button" role="tab" aria-selected="true" data-view="week">週ごと</button>
+          <button class="ship-view-tab" type="button" role="tab" aria-selected="false" data-view="day">日付ごと</button>
+        </div>
 
-      <section class="card ship-rules">
-        <h2>計算のしかた</h2>
+        <section id="ship-weeks" class="ship-weeks" aria-label="週ごとの件数"></section>
+        <section id="ship-list" class="ship-list" aria-label="出荷日ごとの件数" hidden></section>
+
+        <section id="ship-months" class="ship-months" aria-label="月ごとの合計と発注本数"></section>
+      </section>
+
+      <section id="page-alert" role="tabpanel" aria-labelledby="tab-alert" hidden>
+        <div id="stock-card" class="card stock-card" hidden>
+          <div id="stock-counts" class="stock-counts"></div>
+          <p id="stock-meta" class="stock-meta"></p>
+          <div id="stock-groups" class="stock-groups"></div>
+          <button id="stock-copy" class="history-refresh" type="button" hidden>至急・今週中の分をコピー</button>
+        </div>
+        <div id="stock-error" class="form-error" role="alert" hidden></div>
+      </section>
+
+      <details class="card ship-rules">
+        <summary>計算のしかた</summary>
         <ul>
           <li>定期回数はひとつ先の数字で表示しています（定期回数1 → Vol.2、定期回数2 → Vol.3 … 定期回数11 → Vol.12）。</li>
           <li>シートの「次回配送予定日」はお客様に届く日です。Vol. はその前日に出荷します。前日が土日にあたる場合は、直前の金曜日に出荷します（月曜・日曜・土曜に届く分は金曜日の出荷）。</li>
@@ -89,7 +89,7 @@
           <li>発注アラートの各銘柄の「入荷」に本数を入れて「記録」を押すと、今日の入荷としてSlackと在庫管理シートに記録します（記入者・備考は空欄）。間違えたときは、瓶詰め記録の「入荷を記録」タブの履歴から削除できます。</li>
           <li>祝日は考慮していません。</li>
         </ul>
-      </section>
+      </details>
     </main>
     <div id="ship-toast" class="toast" role="status" aria-live="polite"></div>
     <script src="./shipments.js"></script>
