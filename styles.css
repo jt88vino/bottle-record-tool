@@ -136,3 +136,26 @@ dialog::backdrop { background: rgba(36, 23, 25, .52); }
 .history-status { margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; color: var(--muted); background: #faf6f2; font-size: 12.5px; font-weight: 700; }
 .history-item.is-just-saved { border-color: var(--accent); background: #fffaf0; }
 .history-pending { margin: 0; color: #9a6410; font-size: 12px; font-weight: 800; }
+
+/* hidden を付けた要素は、display を指定したクラスより優先して隠す */
+[hidden], .item-note-field[hidden] { display: none !important; }
+
+/* 瓶詰め記録ページ：見出しを小さく、記録ボタンは画面の下に残して合計を出す */
+.record-head { padding: 12px 0 14px; text-align: center; }
+.record-head h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
+.page-record .card h2 { margin-bottom: 10px; font-size: 16px; }
+.page-record .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.page-record .section-heading h2 { margin: 0; }
+.page-record .multiplier { display: inline-block; margin: 0; }
+.page-record .history-list { margin-top: 0; }
+.page-record .submit-button { position: sticky; bottom: 10px; z-index: 4; margin-bottom: 16px; box-shadow: 0 10px 24px rgba(75, 16, 35, .32); }
+.page-record .button-subtitle { color: #fbe3e4; font-size: 12.5px; }
+.page-record .button-subtitle output { color: #fff; font-weight: 900; }
+.group-count { margin: 0 10px 0 auto; padding: 2px 8px; border-radius: 999px; color: var(--wine); background: #f7e9e8; font-size: 12px; font-weight: 800; }
+.editor-foot { margin: 18px 0 0; text-align: center; }
+.page-record .editor-link { margin-top: 0; }
+@media (max-width: 560px) {
+  .page-record .card { padding: 14px; }
+  .page-record .field-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .page-record .mode-tab { min-height: 42px; }
+}

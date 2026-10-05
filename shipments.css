@@ -15,8 +15,6 @@ body.theme-ship {
   --ship-shadow: rgba(11, 63, 69, .08);
   background: linear-gradient(140deg, #e2eeef 0%, var(--cream) 42%, #e5eeeb 100%);
 }
-/* hidden を付けた要素は、display を指定したクラスより優先して隠す（週ごと/日付ごとの切り替えなど） */
-[hidden] { display: none !important; }
 body.theme-ship .card { background: rgba(255, 255, 255, .94); box-shadow: 0 8px 30px var(--ship-shadow); }
 body.theme-ship .summary { box-shadow: 0 10px 25px rgba(11, 63, 69, .2); }
 body.theme-ship .summary span { color: #d3ecec; }
