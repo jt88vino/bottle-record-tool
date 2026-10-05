@@ -162,3 +162,14 @@ test('シートの「小瓶ロス」の本数を、瓶詰め済みの小瓶か�
   const baseline = { bottledTotal: { 'vol.8-4': 7 } };
   assert.deepEqual(smallBottlesOnHand([{ id: 'vol.8-4', bottled: 37 }], baseline, 7.5, { 'Vol.8': 100 }, { 'vol.8-4': 5 }), { 'vol.8-4': 120 });
 });
+
+test('定期外などで足した出荷も、出荷日が過ぎたら小瓶を使った数に入れる', () => {
+  const ledger = { deliveries: { '2026-10-01': { 'Vol.7': 2 } } };
+  const additional = { '2026-10-01': { 'Vol.7': 10, 'Vol.9': 5 }, '2026-10-20': { 'Vol.11': 8 } }; // 10/20着はまだ先
+  assert.deepEqual(consumedByPlan(ledger, '2026-09-29', '2026-10-05', {}, additional), { 'Vol.7': 12, 'Vol.9': 5 });
+  const rows = usageRows(ledger, '2026-09-29', '2026-10-05', { extraDates: ['2026-10-01'], additional });
+  assert.deepEqual(rows.map((r) => [r.shipDate, r.plan, r.kind, r.count]), [
+    ['2026-09-30', 'Vol.7', '連絡', 12], // 連絡の 2件と、足した 10件をまとめる
+    ['2026-09-30', 'Vol.9', '連絡', 5],
+  ]);
+});

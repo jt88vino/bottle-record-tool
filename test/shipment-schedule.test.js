@@ -198,3 +198,22 @@ test('月のカードの Vol.1 見込みは、今日から月末までの平日�
   const next = buildSchedule(rowsFromCsv(csv), { factor: 7.5, today: '2026-10-01', forecasts: { 'Vol.1': 130 } });
   assert.deepEqual(next.months.map((m) => m.key), ['2026-10']);
 });
+
+test('定期外などで足す出荷は、レポートや連絡に同じ配送予定日があっても足す', () => {
+  const { rowsFromAdditional } = require('../lib/shipment-schedule');
+  const report = rowsFromCsv('次回配送予定日,定期回数\n2026/10/20 0:00,10\n2026/10/20 0:00,10\n'); // 10/20着 Vol.11 ×2
+  const extra = {
+    deliveries: { '2026-10-01': { 'Vol.7': 2 } },
+    additional: { '2026-10-01': { 'Vol.7': 10, 'Vol.9': 5, 'Vol.1': 4 }, '2026-10-20': { 'Vol.11': 8 } },
+  };
+  const rows = report.concat(rowsFromExtra(extra, report), rowsFromAdditional(extra, { skipPlans: ['Vol.1'] }));
+  assert.deepEqual(countsByDelivery(rows), {
+    '2026-10-20': { 'Vol.11': 2 + 8 },
+    '2026-10-01': { 'Vol.7': 2 + 10, 'Vol.9': 5 }, // Vol.1 は月の見込みで数えるので足さない
+  });
+  const r = buildSchedule(rows, { today: '2026-09-30' });
+  const day = (date) => r.days.find((d) => d.date === date);
+  assert.deepEqual(day('2026-09-30').additional.map((e) => [e.date, e.count]), [['2026-10-01', 15]]);
+  assert.deepEqual(day('2026-10-19').additional.map((e) => [e.date, e.count]), [['2026-10-20', 8]]); // 10/20(火)着 → 10/19(月)出荷
+  assert.equal(day('2026-10-19').total, 10);
+});

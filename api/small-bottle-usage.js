@@ -2,7 +2,7 @@
 // 「小瓶出荷記録」タブに書き写す（台帳は Vercel Blob。消えてもシートの記録は残る）
 const { loadLedger } = require('../lib/ledger-store');
 const { usageRows } = require('../lib/small-bottles');
-const { todayInJapan } = require('../lib/shipment-schedule');
+const { todayInJapan, rowsFromAdditional, countsByDelivery } = require('../lib/shipment-schedule');
 const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
 const EXTRA_DELIVERIES = require('../data/extra-deliveries.json');
 const { FORECASTS } = require('../lib/forecasts');
@@ -17,7 +17,8 @@ module.exports = async (request, response) => {
   const requested = String((request.query && request.query.today) || '');
   const today = /^\d{4}-\d{2}-\d{2}$/.test(requested) ? requested : todayInJapan();
   const startDate = SMALL_BOTTLE_BASELINE.startDate;
-  const rows = usageRows(ledger, startDate, today, { extraDates: Object.keys(EXTRA_DELIVERIES.deliveries || {}), forecasts: FORECASTS });
+  const additional = countsByDelivery(rowsFromAdditional(EXTRA_DELIVERIES, { skipPlans: Object.keys(FORECASTS) }));
+  const rows = usageRows(ledger, startDate, today, { extraDates: Object.keys(EXTRA_DELIVERIES.deliveries || {}), forecasts: FORECASTS, additional });
   response.setHeader('Cache-Control', 'no-store');
   return response.status(200).json({
     startDate,

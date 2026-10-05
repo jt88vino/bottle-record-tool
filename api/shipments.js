@@ -1,4 +1,4 @@
-const { buildSchedule, rowsFromCsv, rowsFromExtra, countsByDelivery, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
+const { buildSchedule, rowsFromCsv, rowsFromExtra, rowsFromAdditional, countsByDelivery, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { buildStockAlerts } = require('../lib/stock-alerts');
 const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
 const { loadLedger, saveLedger } = require('../lib/ledger-store');
@@ -62,6 +62,8 @@ module.exports = async (request, response) => {
     // 連絡をもらった数（Vol.1 は月の見込みで数えるので使わない）
     const extraRows = rowsFromExtra(EXTRA_DELIVERIES, reportRows, { skipPlans: Object.keys(FORECASTS) });
     const knownRows = reportRows.concat(extraRows);
+    // 定期レポートとは別の出荷（定期外など）。レポート・連絡・台帳の数に足す（台帳には書かない）
+    const additionalRows = rowsFromAdditional(EXTRA_DELIVERIES, { skipPlans: Object.keys(FORECASTS) });
 
     // 定期レポートは注文が出た分から消えていくので、見えている出荷件数を台帳に控え、レポートに載る前に消えた日は
     // 見積もりを控える。在庫のシートが読めなくても控える（台帳が読めなかった回は、空の台帳で上書きしないよう保存しない）
@@ -76,7 +78,7 @@ module.exports = async (request, response) => {
       await saveLedger(ledger).catch((error) => console.error('Could not save shipments ledger:', error.message));
     }
     // 台帳にあってレポートから消えた分も、出荷するまでは今後の出荷に入れる
-    const rows = knownRows.concat(ledger.loadFailed ? [] : rowsFromLedger(ledger, knownRows, today));
+    const rows = knownRows.concat(ledger.loadFailed ? [] : rowsFromLedger(ledger, knownRows, today), additionalRows);
     const schedule = buildSchedule(rows, { ...settings, today, forecasts: FORECASTS });
 
     // 在庫が読めなくても、出荷予定だけは表示する
@@ -91,7 +93,7 @@ module.exports = async (request, response) => {
       // シートの「小瓶ロス」に記録した、起点の日〜今日のロス
       const losses = lossesFromSource(stockResult.data, start, today);
       const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
-        consumedByPlan(ledger, start, today, FORECASTS), losses);
+        consumedByPlan(ledger, start, today, FORECASTS, countsByDelivery(additionalRows)), losses);
 
       stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,

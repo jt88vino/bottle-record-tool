@@ -133,6 +133,7 @@
       }
       const byDelivery = (list) => list.map((s) => `${md(s.date)}(${s.weekday})着 ${num(s.count)}件`).join('・');
       if (day.extra && day.extra.length) notes.push(`定期レポートに無く、連絡をもらった数：${byDelivery(day.extra)}`);
+      if (day.additional && day.additional.length) notes.push(`定期外などで足した数：${byDelivery(day.additional)}`);
       if (day.fromLedger && day.fromLedger.length) notes.push(`注文が出て定期レポートから消えた分（前に読んだ数）：${byDelivery(day.fromLedger)}`);
       if (day.estimated && day.estimated.length) notes.push(`どこにも数が無いため見積もった分：${byDelivery(day.estimated)}`);
       return `<article class="ship-day${day.total === peak ? ' is-peak' : ''}">
