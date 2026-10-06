@@ -411,31 +411,48 @@
     $('ship-list').hidden = view !== 'day';
   }
 
+  // 前回の結果を先に出しておき、最新は裏で読み込む（スプレッドシートが遅くても待たずに見られる）
+  const CACHE_KEY = 'shipments.lastResult';
+  function readCache() {
+    try { const cached = JSON.parse(window.localStorage.getItem(CACHE_KEY) || 'null'); return cached && cached.today === todayKey() ? cached : null; } catch { return null; }
+  }
+  function show(result, note = '') {
+    data = result;
+    const time = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(result.fetchedAt));
+    const skipped = result.skipped.length ? `（読めなかった行 ${num(result.skipped.length)}件は除外）` : '';
+    $('ship-status').textContent = `${time} 時点・今日 ${md(result.today)}(${wd(result.today)}) 基準${skipped}${note}`;
+    $('ship-source').href = result.source;
+    $('ship-source').hidden = false;
+    renderSummary();
+    renderStock();
+    renderWeeks();
+    renderDays();
+    renderMonths();
+    applyView();
+  }
+
   async function load() {
     const button = $('ship-reload');
     button.disabled = true;
     $('ship-error').hidden = true;
-    $('ship-status').textContent = 'スプレッドシートを読み込み中です…';
+    const cached = data ? null : readCache();
+    if (cached) show(cached, '・最新を読み込み中…');
+    else if (data) $('ship-status').textContent += '・最新を読み込み中…';
+    else $('ship-status').textContent = 'スプレッドシートを読み込み中です…';
     try {
       const response = await fetch(`/api/shipments?today=${todayKey()}`, { cache: 'no-store' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '読み込めませんでした。');
-      data = result;
-      const time = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(result.fetchedAt));
-      const skipped = result.skipped.length ? `（読めなかった行 ${num(result.skipped.length)}件は除外）` : '';
-      $('ship-status').textContent = `${time} 時点・今日 ${md(result.today)}(${wd(result.today)}) 基準${skipped}`;
-      $('ship-source').href = result.source;
-      $('ship-source').hidden = false;
-      renderSummary();
-      renderStock();
-      renderWeeks();
-      renderDays();
-      renderMonths();
-      applyView();
+      show(result);
+      try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(result)); } catch { /* 覚えられなくても表示はできる */ }
     } catch (error) {
-      $('ship-status').textContent = '';
-      $('ship-error').textContent = error.message;
-      $('ship-error').hidden = false;
+      if (data) {
+        show(data, '・最新を読み込めませんでした（少し待って「更新」を押してください）');
+      } else {
+        $('ship-status').textContent = '';
+        $('ship-error').textContent = error.message;
+        $('ship-error').hidden = false;
+      }
     } finally {
       button.disabled = false;
     }

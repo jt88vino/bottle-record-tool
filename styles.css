@@ -94,6 +94,7 @@ dialog::backdrop { background: rgba(36, 23, 25, .52); }
 .dialog-content { padding: 26px; }
 .dialog-content h2 { font-size: 21px; }
 .report-preview { max-height: 46vh; overflow: auto; margin: 18px 0; padding: 14px; border-radius: 10px; background: #f8f4f0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+.duplicate-warning { margin: 14px 0 0; padding: 12px 14px; border-radius: 10px; color: #8a1c1c; background: #fdecec; font-weight: 800; line-height: 1.6; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px; }
 .secondary-button { color: var(--wine); background: #f5ece7; }
 .primary-button { color: white; background: var(--wine); }
@@ -159,3 +160,13 @@ dialog::backdrop { background: rgba(36, 23, 25, .52); }
   .page-record .field-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .page-record .mode-tab { min-height: 42px; }
 }
+
+/* 裏で送っている記録の状態（送信中・送れなかった） */
+.send-queue { position: sticky; top: 8px; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; color: #4a3b1c; background: #fff6dc; box-shadow: 0 4px 14px rgba(0,0,0,.08); font-size: 14px; font-weight: 700; }
+.send-queue.is-failed { color: #8a1c1c; background: #fdecec; }
+.send-queue button { min-height: 36px; padding: 0 12px; border: 1px solid currentColor; border-radius: 9px; color: inherit; background: white; font-weight: 800; cursor: pointer; }
+.send-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: send-spin .8s linear infinite; }
+@keyframes send-spin { to { transform: rotate(360deg); } }
+.history-item.is-queued { opacity: .8; border-style: dashed; }
+.history-item.is-failed { opacity: 1; border-color: #d9a0a0; }
+.history-failed { margin-top: 6px; color: #8a1c1c; font-weight: 700; }

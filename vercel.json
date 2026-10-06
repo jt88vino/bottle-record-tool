@@ -19,5 +19,13 @@
       "path": "/api/shipments",
       "schedule": "0 23 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/report.js": {
+      "maxDuration": 60
+    },
+    "api/history.js": {
+      "maxDuration": 60
+    }
+  }
 }

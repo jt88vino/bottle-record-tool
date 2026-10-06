@@ -16,6 +16,7 @@
       </nav>
       <header class="record-head"><h1 id="page-title">瓶詰め・入荷・出荷記録</h1></header>
 
+      <div id="send-queue" class="send-queue" hidden role="status" aria-live="polite"></div>
       <div class="mode-tabs" role="tablist" aria-label="記録の種類">
         <button id="bottling-tab" class="mode-tab active" type="button" role="tab" aria-selected="true" aria-controls="bottling-panel">瓶詰め</button>
         <button id="incoming-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="incoming-panel">入荷</button>
@@ -63,9 +64,10 @@
       <p class="editor-foot"><a class="editor-link" href="/admin">編集者設定</a></p>
     </main>
 
-    <dialog id="confirm-dialog" aria-labelledby="dialog-title"><div class="dialog-content"><p class="eyebrow">CONFIRM</p><h2 id="dialog-title">この内容で送りますか？</h2><div id="report-preview" class="report-preview"></div><div class="dialog-actions"><button id="back-button" class="secondary-button" type="button">戻って修正</button><button id="confirm-button" class="primary-button" type="button">記録を送信する</button></div></div></dialog>
+    <dialog id="confirm-dialog" aria-labelledby="dialog-title"><div class="dialog-content"><p class="eyebrow">CONFIRM</p><h2 id="dialog-title">この内容で送りますか？</h2><p id="duplicate-warning" class="duplicate-warning" hidden></p><div id="report-preview" class="report-preview"></div><div class="dialog-actions"><button id="back-button" class="secondary-button" type="button">戻って修正</button><button id="confirm-button" class="primary-button" type="button">記録を送信する</button></div></div></dialog>
     <dialog id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-content"><p class="eyebrow">DELETE RECORD</p><h2 id="delete-title">この履歴を削除しますか？</h2><p id="delete-preview" class="delete-preview"></p><p class="delete-warning">Google Sheetの記録も削除されます。この操作は取り消せません。</p><div class="dialog-actions"><button id="delete-cancel" class="secondary-button" type="button">戻る</button><button id="delete-confirm" class="danger-button" type="button">削除する</button></div></div></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./duplicate-check.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
