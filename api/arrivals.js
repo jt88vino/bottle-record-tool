@@ -1,5 +1,5 @@
 // 今日（と次の出勤日）に届くワイン。勤怠アプリ（hw-kintai-v2.vercel.app）から読む。
-// POST（編集用パスワード）で到着日を手で直せる：{ keys: [...], date: 'YYYY-MM-DD' }（date を空にすると自動に戻す）
+// POST で到着日を手で直せる（パスワードなし）：{ keys: [...], date: 'YYYY-MM-DD' }（date を空にすると自動に戻す）
 const { loadStockSource } = require('../lib/stock-source');
 const { arrivalsFromSource, arrivalsOn, upcoming, nextWorkday, addDays } = require('../lib/arrivals');
 const { loadOverrides, saveOverrides } = require('../lib/arrival-overrides');
@@ -11,9 +11,9 @@ module.exports = async (request, response) => {
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key');
   if (request.method === 'OPTIONS') return response.status(204).end();
   if (request.method === 'POST') {
-    if (!process.env.ADMIN_SECRET || request.headers['x-admin-key'] !== process.env.ADMIN_SECRET) return response.status(401).json({ error: '編集用パスワードが正しくありません。' });
+    // 着日の変更はパスワードなし（2026-10-07 牛嶋さん指定）。直せるのは届く日だけ
     const { keys, date } = request.body || {};
-    if (!Array.isArray(keys) || !keys.length || keys.length > 50 || keys.some((k) => typeof k !== 'string' || k.length > 80)) return response.status(400).json({ error: '直す発注が正しくありません。' });
+    if (!Array.isArray(keys) || !keys.length || keys.length > 50 || keys.some((k) => typeof k !== 'string' || !/^\d{4}-\d{2}-\d{2}\|[^|]{1,40}\|\d{1,5}$/.test(k))) return response.status(400).json({ error: '直す発注が正しくありません。' });
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return response.status(400).json({ error: '日付が正しくありません。' });
     try {
       const overrides = await loadOverrides();
