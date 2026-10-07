@@ -206,9 +206,9 @@
     const busy = sending.has(item.id);
     const error = failed.get(item.id);
     const record = item.level === 'ok' ? '' : `<form class="incoming-inline" data-wine="${esc(item.id)}">
-        <label><span>入荷</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数"${busy ? ' disabled' : ''} /><span>本</span></label>
+        <label><span>発注</span><input type="number" name="bottles" min="1" max="9999" step="1" inputmode="numeric" placeholder="本数" value="${esc(drafts.get(item.id) || '')}" aria-label="${esc(item.id)} の入荷本数"${busy ? ' disabled' : ''} /><span>本</span></label>
         <button class="incoming-submit" type="submit"${busy ? ' disabled' : ''}>${busy ? '記録中…' : '記録'}</button>
-        ${stillDone ? `<p class="incoming-done">入荷 ${num(stillDone.bottles)}本を記録しました（反映まで数分）</p>` : ''}
+        ${stillDone ? `<p class="incoming-done">発注 ${num(stillDone.bottles)}本を記録しました（反映まで数分）</p>` : ''}
         ${error ? `<p class="incoming-error">${esc(error)}</p>` : ''}
       </form>`;
     return `<li class="stock-item level-${item.level}">
@@ -238,6 +238,7 @@
     badge.hidden = !(s.counts.urgent || s.counts.soon);
     $('stock-counts').innerHTML = Object.keys(LEVELS).filter((k) => k !== 'ok')
       .map((k) => `<span class="stock-count level-${k}${s.counts[k] ? '' : ' is-zero'}">${LEVELS[k].label}<b>${num(s.counts[k])}</b></span>`).join('');
+    renderStockNow(s.items);
     if (!openLevels) openLevels = new Set(Object.keys(LEVELS).filter((k) => LEVELS[k].open));
     // 入力中の欄があれば、描き直したあとも同じ欄にカーソルを戻す
     const active = document.activeElement;
@@ -259,6 +260,24 @@
     }
   }
 
+  // 今の在庫（発注アラートの前に、Vol ごとに全銘柄の本数）。0本以下は赤、残り少ない（6本以下）は黄色
+  function renderStockNow(items) {
+    const groups = new Map();
+    const rank = (id) => { const m = String(id).match(/^(vol|pro)\.?(\d+)(?:-(\d+))?/i); return m ? (m[1].toLowerCase() === 'pro' ? 10000 : 0) + Number(m[2]) * 100 + Number(m[3] || 0) : 99999; };
+    [...items].sort((a, b) => rank(a.id) - rank(b.id)).forEach((item) => {
+      const m = String(item.id).match(/^(vol|pro)\.?(\d+)/i);
+      const key = m ? (m[1].toLowerCase() === 'pro' ? 'PRO' : `Vol.${Number(m[2])}`) : 'その他';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(item);
+    });
+    $('stock-now-list').innerHTML = [...groups.entries()].map(([label, rows]) => `<div class="stock-now-group"><h4>${esc(label)}</h4><ul>${rows.map((item) => {
+      const cls = item.stock <= 0 ? ' is-out' : item.stock <= 6 ? ' is-low' : '';
+      return `<li class="stock-now-item${cls}"><span class="stock-now-id">${esc(String(item.id).replace(/^vol\./i, ''))}</span><span class="stock-now-name">${esc(item.name || '')}</span><b>${num(item.stock)}本</b></li>`;
+    }).join('')}</ul></div>`).join('');
+  }
+
+  (() => { const el = $('stock-now'); try { if (window.localStorage.getItem('shipments.stockNowOpen') === '0') el.open = false; } catch { /* 覚えていなければ開く */ } el.addEventListener('toggle', () => { try { window.localStorage.setItem('shipments.stockNowOpen', el.open ? '1' : '0'); } catch { /* 覚えられなくても開閉はできる */ } }); })();
+
   // ── 発注アラートから入荷を記録する ─────────────────────
   // 本数を入れて「記録」を押すだけ。記入日は今日、記入者・備考は空欄（入荷タブと同じく Slack と在庫管理シートへ）
   async function loadWineIds() {
@@ -276,12 +295,12 @@
     const wine = form.dataset.wine;
     if (sending.has(wine)) return;
     const bottles = Number(form.elements.bottles.value);
-    if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('入荷した本数を入れてください'); form.elements.bottles.focus(); return; }
+    if (!Number.isInteger(bottles) || bottles < 1 || bottles > 9999) { toast('発注した本数を入れてください'); form.elements.bottles.focus(); return; }
     if (!recorderRows[wine]) await loadWineIds();
     const rowId = recorderRows[wine];
     const item = data.stock.items.find((i) => i.id === wine);
     failed.delete(wine);
-    if (!rowId) { failed.set(wine, 'この銘柄は瓶詰め記録の設定に見つかりません。入荷タブから記録してください'); renderStock(); return; }
+    if (!rowId) { failed.set(wine, 'この銘柄は瓶詰め記録の設定に見つかりません。発注タブから記録してください'); renderStock(); return; }
     sending.add(wine);
     renderStock();
     const date = todayKey();
@@ -295,7 +314,7 @@
       if (!result.sheetsSaved) throw new Error(result.error || '記録できませんでした。もう一度押してください');
       drafts.delete(wine);
       recorded.set(wine, { bottles, date, stockBefore: item ? item.stock : 0, at: Date.now() });
-      toast(`${wine} の入荷 ${num(bottles)}本 を記録しました`);
+      toast(`${wine} の発注 ${num(bottles)}本 を記録しました`);
       // ほかのタブの出荷ページにも知らせ、在庫シートへの反映を待って読み直す
       try { window.localStorage.setItem('stockChangedAt', `${Date.now()}:incoming`); } catch { /* 知らせられなくても読み直しは下で行う */ }
       [20, 60, 180].forEach((sec) => setTimeout(reload, sec * 1000));

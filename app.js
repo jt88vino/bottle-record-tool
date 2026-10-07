@@ -24,7 +24,7 @@ function makeGroups(target, prefix, kind, sourceGroups = appConfig.groups) {
   target.replaceChildren();
   sourceGroups.forEach((group, groupIndex) => {
     const detail = document.createElement('details'); detail.open = groupIndex === 0;
-    const isIncoming = kind === 'incoming'; const action = isIncoming ? '入荷' : kind === 'shipping' ? '出荷' : '使用';
+    const isIncoming = kind === 'incoming'; const action = isIncoming ? '発注' : kind === 'shipping' ? '出荷' : '使用';
     detail.innerHTML = `<summary><span>${escapeHtml(group.label)}</span><span class="group-count" hidden></span></summary><div class="volume-inputs">${group.rows.map((row) => `<div class="wine-input ${isIncoming ? 'incoming-wine-input' : ''}"><label for="${prefix}${escapeHtml(row.id)}"><span>${escapeHtml(row.label)}</span><small>${escapeHtml(row.wineName || 'ワイン名未設定')}${isIncoming ? `<em>${escapeHtml(row.importerName || 'インポーター未設定')}</em>` : ''}</small></label><input id="${prefix}${escapeHtml(row.id)}" name="${escapeHtml(row.id)}" type="number" inputmode="numeric" min="0" max="9999" step="1" placeholder="0" aria-label="${escapeHtml(row.label)}の${action}本数" />${isIncoming ? `<label class="item-note-field" hidden for="note-${prefix}${escapeHtml(row.id)}"><span>銘柄別備考（任意）</span><textarea id="note-${prefix}${escapeHtml(row.id)}" data-item-note="${escapeHtml(row.id)}" rows="2" maxlength="1000"></textarea></label>` : ''}</div>`).join('')}</div>`;
     target.append(detail);
   });
@@ -41,7 +41,7 @@ function updateSummary(type) { updateGroupCounts(type); updateItemNotes(type); c
 function reportText(report) {
   const lines = report.items.map((item) => report.type === 'incoming' ? `・${item.label}｜${item.wineName}: ${formatNumber(item.bottles)}本${item.itemNote ? `\n  銘柄別備考: ${item.itemNote}` : ''}` : report.type === 'shipping' ? `・${item.label}｜${item.wineName}: ${formatNumber(item.bottles)}本` : `・${item.label}｜${item.wineName}: ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`).join('\n');
   const itemSummary = lines || '・本数入力なし（備考のみの記録）';
-  if (report.type === 'incoming') return `入荷記録\n記入日: ${report.date}\n記入者: ${report.recorderName || '未入力'}\n\n入荷ワイン\n${itemSummary}\n\n合計: ${formatNumber(report.totalBottles)}本${report.supplier ? `\n仕入先: ${report.supplier}` : ''}${report.notes ? `\n\n備考\n${report.notes}` : ''}`;
+  if (report.type === 'incoming') return `発注記録\n記入日: ${report.date}\n記入者: ${report.recorderName || '未入力'}\n\n発注ワイン\n${itemSummary}\n\n合計: ${formatNumber(report.totalBottles)}本${report.supplier ? `\n仕入先: ${report.supplier}` : ''}${report.notes ? `\n\n備考\n${report.notes}` : ''}`;
   if (report.type === 'shipping') return `ボトル販売出荷記録\n出荷日: ${report.date}\n記入者: ${report.recorderName}\n\n出荷ワイン\n${itemSummary}\n\n合計: ${formatNumber(report.totalBottles)}本${report.notes ? `\n\n備考\n${report.notes}` : ''}`;
   return `瓶詰め記録\n作業日: ${report.date}\n記入者: ${report.recorderName}\n\n使用ワイン\n${itemSummary}\n\n合計: 使用 ${formatNumber(report.totalBottles)}本 / 小瓶 ${formatNumber(report.totalSmallBottles)}本${report.notes ? `\n\n備考\n${report.notes}` : ''}`;
 }
@@ -82,7 +82,7 @@ function duplicateMessage(report) {
   return '';
 }
 function showDuplicateWarning(report) { const message = duplicateMessage(report); const box = document.querySelector('#duplicate-warning'); box.hidden = !message; box.textContent = message ? `⚠️ ${message}二重になりませんか？` : ''; document.querySelector('#dialog-title').textContent = message ? '二重送信ではありませんか？' : 'この内容で送りますか？'; confirmButton.textContent = message ? 'それでも送信する' : '記録を送信する'; confirmButton.classList.toggle('danger-button', Boolean(message)); confirmButton.classList.toggle('primary-button', !message); }
-function formatHistory(item, type) { const date = String(item.date || '').replaceAll('-', '/'); const notesOnly = type === 'bottling' && !item.program && !item.wineName && Number(item.bottles) === 0; const notes = [item.itemNote ? `銘柄別備考：${escapeHtml(item.itemNote)}` : '', item.notes ? `備考：${escapeHtml(item.notes)}` : ''].filter(Boolean).map((note) => `<p>${note}</p>`).join(''); const sub = notesOnly ? '本数入力なし' : type === 'incoming' ? `入荷 ${formatNumber(item.bottles)}本${item.supplier ? ` ／ ${escapeHtml(item.supplier)}` : ''}` : type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`; const program = notesOnly ? '備考のみの記録' : item.program; const wineName = notesOnly ? '' : item.wineName; const label = notesOnly ? '備考のみの記録' : `${item.program}｜${item.wineName}`; return `<article class="history-item"><div><strong>${escapeHtml(program)}</strong><span>${escapeHtml(wineName)}</span></div><div class="history-meta"><span>${date} ・ ${escapeHtml(item.recorderName || '記入者未入力')}</span><b>${sub}</b></div>${notes}<button class="history-delete" type="button" data-history="${type}" data-row-number="${Number(item.rowNumber)}" data-label="${escapeHtml(label)}">削除</button></article>`; }
+function formatHistory(item, type) { const date = String(item.date || '').replaceAll('-', '/'); const notesOnly = type === 'bottling' && !item.program && !item.wineName && Number(item.bottles) === 0; const notes = [item.itemNote ? `銘柄別備考：${escapeHtml(item.itemNote)}` : '', item.notes ? `備考：${escapeHtml(item.notes)}` : ''].filter(Boolean).map((note) => `<p>${note}</p>`).join(''); const sub = notesOnly ? '本数入力なし' : type === 'incoming' ? `発注 ${formatNumber(item.bottles)}本${item.supplier ? ` ／ ${escapeHtml(item.supplier)}` : ''}` : type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`; const program = notesOnly ? '備考のみの記録' : item.program; const wineName = notesOnly ? '' : item.wineName; const label = notesOnly ? '備考のみの記録' : `${item.program}｜${item.wineName}`; return `<article class="history-item"><div><strong>${escapeHtml(program)}</strong><span>${escapeHtml(wineName)}</span></div><div class="history-meta"><span>${date} ・ ${escapeHtml(item.recorderName || '記入者未入力')}</span><b>${sub}</b></div>${notes}<button class="history-delete" type="button" data-history="${type}" data-row-number="${Number(item.rowNumber)}" data-label="${escapeHtml(label)}">削除</button></article>`; }
 // ── 履歴の読み込み ─────────────────────────────
 // Apps Script は要求を1本ずつしか処理しないため、同時に何本も投げると順番待ちで数十秒かかる。
 // そこで (1) 見えているタブの分だけ読む (2) 前回の結果を先に表示して裏で更新する (3) 時間切れは1回だけやり直す
@@ -144,7 +144,7 @@ function showJustSaved(report) {
   const panel = document.querySelector(`#${report.type}-history`);
   const rows = report.items.length ? report.items : [{ label: '', wineName: '', bottles: 0 }];
   const html = rows.map((item) => {
-    const sub = report.type === 'incoming' ? `入荷 ${formatNumber(item.bottles)}本` : report.type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : item.label ? `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.bottles * appConfig.smallBottleFactor)}本` : '備考のみの記録';
+    const sub = report.type === 'incoming' ? `発注 ${formatNumber(item.bottles)}本` : report.type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : item.label ? `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.bottles * appConfig.smallBottleFactor)}本` : '備考のみの記録';
     return `<article class="history-item is-just-saved"><div><strong>${escapeHtml(item.label || '備考のみの記録')}</strong><span>${escapeHtml(item.wineName || '')}</span></div><div class="history-meta"><span>${String(report.date).replaceAll('-', '/')} ・ ${escapeHtml(report.recorderName)}</span><b>${sub}</b></div><p class="history-pending">記録済み・履歴に反映中…</p></article>`;
   }).join('');
   panel.querySelector('.history-empty')?.remove();
@@ -181,7 +181,7 @@ function queueCards(type) {
   return readQueue().filter((entry) => entry.report.type === type).map((entry) => {
     const { report } = entry; const rows = report.items.length ? report.items : [{ label: '', wineName: '', bottles: 0 }];
     const status = entry.state === 'failed' ? `<p class="history-failed">送れませんでした：${escapeHtml(entry.error || '通信エラー')}</p>` : '<p class="history-pending">送信中…（このまま入力を続けられます）</p>';
-    return rows.map((item) => { const sub = report.type === 'incoming' ? `入荷 ${formatNumber(item.bottles)}本` : report.type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : item.label ? `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.bottles * appConfig.smallBottleFactor)}本` : '備考のみの記録'; return `<article class="history-item is-queued${entry.state === 'failed' ? ' is-failed' : ''}"><div><strong>${escapeHtml(item.label || '備考のみの記録')}</strong><span>${escapeHtml(item.wineName || '')}</span></div><div class="history-meta"><span>${String(report.date).replaceAll('-', '/')} ・ ${escapeHtml(report.recorderName || '未入力')}</span><b>${sub}</b></div>${status}</article>`; }).join('');
+    return rows.map((item) => { const sub = report.type === 'incoming' ? `発注 ${formatNumber(item.bottles)}本` : report.type === 'shipping' ? `出荷 ${formatNumber(item.bottles)}本` : item.label ? `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.bottles * appConfig.smallBottleFactor)}本` : '備考のみの記録'; return `<article class="history-item is-queued${entry.state === 'failed' ? ' is-failed' : ''}"><div><strong>${escapeHtml(item.label || '備考のみの記録')}</strong><span>${escapeHtml(item.wineName || '')}</span></div><div class="history-meta"><span>${String(report.date).replaceAll('-', '/')} ・ ${escapeHtml(report.recorderName || '未入力')}</span><b>${sub}</b></div>${status}</article>`; }).join('');
   }).join('');
 }
 function renderQueue() {
@@ -246,8 +246,47 @@ document.addEventListener('click', (event) => {
 });
 window.addEventListener('online', () => processQueue());
 
+// 過去の記録（瓶詰め・発注）：直近2日の履歴の下で、記録のある日を1日ずつ前後に見られる（見るだけ。削除は直近2日の履歴から）
+const pastState = { bottling: { days: null, index: 0, cache: {} }, incoming: { days: null, index: 0, cache: {} } };
+function weekdayOf(key) { const [y, m, d] = key.split('-').map(Number); return '日月火水木金土'[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]; }
+function pastItemHtml(item, type) {
+  const sub = type === 'incoming' ? `発注 ${formatNumber(item.bottles)}本${item.supplier ? ` ／ ${escapeHtml(item.supplier)}` : ''}` : item.program ? `使用 ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本` : '備考のみの記録';
+  const notes = [item.itemNote ? `銘柄別備考：${escapeHtml(item.itemNote)}` : '', item.notes ? `備考：${escapeHtml(item.notes)}` : ''].filter(Boolean).map((n) => `<p>${n}</p>`).join('');
+  return `<article class="history-item"><div><strong>${escapeHtml(item.program || '備考のみの記録')}</strong><span>${escapeHtml(item.wineName || '')}</span></div><div class="history-meta"><span>${escapeHtml(item.sentAt || '')} ・ ${escapeHtml(item.recorderName || '記入者未入力')}</span><b>${sub}</b></div>${notes}</article>`;
+}
+function renderPast(type, status = '') {
+  const st = pastState[type]; const box = document.querySelector(`#${type}-past .past-body`);
+  const day = st.days && st.days[st.index]; const data = day && st.cache[day];
+  const nav = st.days && st.days.length ? `<div class="past-nav"><button type="button" data-past="${type}" data-step="1"${st.index >= st.days.length - 1 ? ' disabled' : ''}>◀ 前の日</button><b>${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}(${weekdayOf(day)})${data ? ` ${data.items.length}件` : ''}</b><button type="button" data-past="${type}" data-step="-1"${st.index <= 0 ? ' disabled' : ''}>次の日 ▶</button></div>` : '';
+  const list = data ? (data.items.length ? data.items.map((item) => pastItemHtml(item, type)).join('') : '<p class="history-empty">この日の記録はありません。</p>') : '';
+  box.innerHTML = `${nav}${status ? `<p class="history-status">${status}</p>` : ''}${list}`;
+}
+async function loadPast(type, day) {
+  const st = pastState[type];
+  if (day && st.cache[day]) return renderPast(type);
+  renderPast(type, '読み込み中…');
+  try {
+    const response = await fetch(`/api/records?type=${type}${day ? `&date=${day}` : ''}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || '過去の記録を読み込めませんでした。');
+    if (!st.days) { st.days = result.days || []; st.index = Math.max(0, st.days.indexOf(result.date)); }
+    st.cache[result.date] = result;
+    renderPast(type);
+  } catch (error) { renderPast(type, `${escapeHtml(error.message)}（もう一度開き直してください）`); }
+}
+['bottling', 'incoming'].forEach((type) => {
+  const history = document.querySelector(`#${type}-history`);
+  history.insertAdjacentHTML('afterend', `<details id="${type}-past" class="past-records"><summary>📅 過去の記録をすべて見る</summary><div class="past-body"></div></details>`);
+  document.querySelector(`#${type}-past`).addEventListener('toggle', (event) => { if (event.target.open && !pastState[type].days) loadPast(type); });
+});
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-past]'); if (!button) return;
+  const type = button.dataset.past; const st = pastState[type];
+  st.index = Math.min(st.days.length - 1, Math.max(0, st.index + Number(button.dataset.step)));
+  loadPast(type, st.days[st.index]);
+});
 // 設定は前回の分ですぐ画面を出し、最新は裏で読む（変わっていて、まだ何も入力していなければ作り直す）
-function startApp(config) { appConfig = config; document.title = `${config.title}・入荷・出荷`; document.querySelector('#page-title').textContent = `${config.title}・入荷・出荷`; document.querySelector('.multiplier').textContent = `1本 = 小瓶 ${formatNumber(config.smallBottleFactor)}本`; populateRecorderOptions(); createInputs(); Object.keys(dateInputs).forEach((type) => { dateInputs[type].value = today(); updateSummary(type); }); openFromUrl(); }
+function startApp(config) { appConfig = config; document.title = `${config.title}・発注・出荷`; document.querySelector('#page-title').textContent = `${config.title}・発注・出荷`; document.querySelector('.multiplier').textContent = `1本 = 小瓶 ${formatNumber(config.smallBottleFactor)}本`; populateRecorderOptions(); createInputs(); Object.keys(dateInputs).forEach((type) => { dateInputs[type].value = today(); updateSummary(type); }); openFromUrl(); }
 function formsTouched() { return Object.values(forms).some((form) => [...form.querySelectorAll('input[type="number"], textarea, select')].some((el) => el.value && el.value !== '0')); }
 let cachedConfigText = null; try { cachedConfigText = window.localStorage.getItem('appConfig'); } catch { /* 無ければ読み込みを待つ */ }
 if (cachedConfigText) { try { startApp(JSON.parse(cachedConfigText)); } catch { cachedConfigText = null; } }

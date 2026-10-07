@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#6e1d35" />
-    <title>瓶詰め・入荷・出荷記録</title>
+    <title>瓶詰め・発注・出荷記録</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="page-record">
@@ -14,12 +14,12 @@
         <a class="app-switch-item" href="https://hw-kintai-v2.vercel.app/">⏱ 勤怠管理</a>
         <a class="app-switch-item" href="/shipments">📦 今後の出荷件数</a>
       </nav>
-      <header class="record-head"><h1 id="page-title">瓶詰め・入荷・出荷記録</h1></header>
+      <header class="record-head"><h1 id="page-title">瓶詰め・発注・出荷記録</h1></header>
 
       <div id="send-queue" class="send-queue" hidden role="status" aria-live="polite"></div>
       <div class="mode-tabs" role="tablist" aria-label="記録の種類">
         <button id="bottling-tab" class="mode-tab active" type="button" role="tab" aria-selected="true" aria-controls="bottling-panel">瓶詰め</button>
-        <button id="incoming-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="incoming-panel">入荷</button>
+        <button id="incoming-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="incoming-panel">発注</button>
         <button id="shipping-tab" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="shipping-panel">販売出荷</button>
       </div>
 
@@ -52,10 +52,10 @@
       <form id="incoming-form" hidden novalidate>
         <div id="incoming-panel" role="tabpanel" aria-labelledby="incoming-tab">
           <section class="card details-card"><h2>日付・記入者</h2><div class="field-grid"><label class="date-field" for="incoming-date"><span>記入日</span><input id="incoming-date" type="date" required /></label><label class="date-field" for="incoming-recorder"><span>記入者名（任意）</span><select id="incoming-recorder"><option value="">未入力でOK</option></select></label></div></section>
-          <section class="card"><div class="section-heading"><h2>入荷したワイン</h2></div><div id="incoming-volume-groups" class="volume-groups"></div></section>
+          <section class="card"><div class="section-heading"><h2>発注したワイン</h2></div><div id="incoming-volume-groups" class="volume-groups"></div></section>
           <section class="card incoming-card"><label>仕入先／納品元（任意）<input id="incoming-supplier" type="text" maxlength="180" placeholder="例：〇〇ワイン" /></label></section>
           <section class="card notes-card"><h2>備考（任意）</h2><label for="incoming-notes">ロット・破損など</label><textarea id="incoming-notes" rows="2" maxlength="1000" placeholder="例：ラベル不良が1本あり"></textarea></section>
-          <button class="submit-button" type="submit"><span class="button-label">入荷を記録する</span><span class="button-subtitle" aria-live="polite">入荷 <output id="incoming-total-bottles">0</output>本・<output id="incoming-total-wines">0</output>銘柄</span></button>
+          <button class="submit-button" type="submit"><span class="button-label">発注を記録する</span><span class="button-subtitle" aria-live="polite">発注 <output id="incoming-total-bottles">0</output>本・<output id="incoming-total-wines">0</output>銘柄</span></button>
           <section class="card history-card"><div class="section-heading"><div><h2>直近2日間の履歴</h2></div><button class="history-refresh" data-history="incoming" type="button">更新</button></div><div id="incoming-history" class="history-list"><p class="history-empty">履歴を読み込み中です。</p></div></section>
         </div>
       </form>

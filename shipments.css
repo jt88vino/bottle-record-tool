@@ -242,3 +242,17 @@ body.theme-ship .history-refresh { border-color: #bcd3d5; }
 /* 共通の summary::after（＋/−）がトグルの印とぶつからないようにする */
 .week-toggle > summary::after, .week-toggle[open] > summary::after { content: none; }
 .stock-group[open] > summary::after { content: '▶'; }
+
+/* 現在庫（発注アラートの上） */
+.stock-now { margin: 10px 0 14px; border: 1px solid var(--line, #e3dcd5); border-radius: 12px; background: #fff; }
+.stock-now > summary { padding: 12px 14px; font-weight: 800; cursor: pointer; }
+.stock-now-note { margin-left: 8px; color: var(--muted, #7a6f68); font-size: 12px; font-weight: 600; }
+.stock-now-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 0 14px 14px; }
+.stock-now-group h4 { margin: 0 0 4px; font-size: 13px; }
+.stock-now-group ul { margin: 0; padding: 0; list-style: none; }
+.stock-now-item { display: grid; grid-template-columns: 34px 1fr auto; gap: 6px; align-items: baseline; padding: 4px 6px; border-radius: 6px; font-size: 13px; }
+.stock-now-id { color: var(--muted, #7a6f68); font-weight: 700; }
+.stock-now-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.stock-now-item b { font-variant-numeric: tabular-nums; }
+.stock-now-item.is-low { background: #fff6dc; }
+.stock-now-item.is-out { background: #fdecec; color: #8a1c1c; }

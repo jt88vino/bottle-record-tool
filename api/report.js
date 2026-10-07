@@ -48,7 +48,7 @@ module.exports = async (request, response) => {
         : `• ${item.program}｜${item.wineName}: ${formatNumber(item.bottles)}本 → 小瓶 ${formatNumber(item.smallBottles)}本`)
     .join('\n') || '• 本数入力なし（備考のみの記録）';
   const message = type === 'incoming'
-    ? `*入荷記録*\n*記入日*: ${date}\n*記入者*: ${recorder}\n\n*入荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${supplier.trim() ? `\n*仕入先*: ${supplier.trim()}` : ''}${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
+    ? `*発注記録*\n*記入日*: ${date}\n*記入者*: ${recorder}\n\n*発注ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${supplier.trim() ? `\n*仕入先*: ${supplier.trim()}` : ''}${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
     : type === 'shipping'
       ? `*ボトル販売出荷記録*\n*出荷日*: ${date}\n*記入者*: ${recorder}\n\n*出荷ワイン*\n${itemLines}\n\n*合計*: ${formatNumber(totalBottles)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`
       : `*${config.title}*\n*作業日*: ${date}\n*記入者*: ${recorder}\n\n*使用ワイン*\n${itemLines}\n\n*合計*: 使用 ${formatNumber(totalBottles)}本 / 小瓶 ${formatNumber(totalBottles * config.smallBottleFactor)}本${notes.trim() ? `\n\n*備考*\n${notes.trim()}` : ''}`;

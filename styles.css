@@ -170,3 +170,10 @@ dialog::backdrop { background: rgba(36, 23, 25, .52); }
 .history-item.is-queued { opacity: .8; border-style: dashed; }
 .history-item.is-failed { opacity: 1; border-color: #d9a0a0; }
 .history-failed { margin-top: 6px; color: #8a1c1c; font-weight: 700; }
+
+/* 過去の記録（1日ずつ） */
+.past-records { margin-top: 12px; border-top: 1px dashed #e0d6cf; padding-top: 10px; }
+.past-records > summary { cursor: pointer; font-weight: 800; color: var(--wine, #6b1f2e); }
+.past-nav { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; margin: 10px 0; text-align: center; }
+.past-nav button { min-height: 40px; padding: 0 12px; border: 1px solid #d8ccc4; border-radius: 10px; background: white; font-weight: 800; cursor: pointer; }
+.past-nav button:disabled { opacity: .35; cursor: default; }
