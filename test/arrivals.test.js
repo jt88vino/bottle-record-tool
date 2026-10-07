@@ -31,3 +31,13 @@ test('備考の日付は年をまたいでも読む', () => {
   assert.equal(noteDate('1/5着', '2026-12-28'), '2027-01-05');
   assert.equal(noteDate('なし', '2026-12-28'), null);
 });
+
+test('手で直した届く日を優先する（出勤日へのずらしもしない）', () => {
+  const { orderKey, upcoming } = require('../lib/arrivals');
+  const key = orderKey({ date: '2026-10-06', id: 'vol.7-2', bottles: 12 });
+  const a = arrivalsFromSource(data, { [key]: '2026-10-10' });
+  assert.deepEqual(arrivalsOn(a, '2026-10-07').map((r) => r.id), []);
+  const moved = a.find((r) => r.key === key);
+  assert.equal(moved.arrivesOn, '2026-10-10'); assert.equal(moved.manual, true);
+  assert.equal(upcoming(a, '2026-10-07')[0].arrivesOn, '2026-10-08');
+});
