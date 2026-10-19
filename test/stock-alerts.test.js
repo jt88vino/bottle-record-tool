@@ -247,3 +247,16 @@ test('至急は発注期限が明日までの出荷分に必ず必要な本数�
   assert.equal(later.urgentUntil, null);
   assert.deepEqual(later.monthNeeds.map((m) => [m.month, m.bottles]), [['2026-10', 3], ['2026-11', 3]]);
 });
+
+test('ボトル在庫が0で、小瓶の見積もりだけでまかなう銘柄には注意を出す（数えて14日以内なら出さない）', () => {
+  const days = [{ date: '2026-10-19', plans: [{ label: 'Vol.7', count: 9 }] }];
+  const wine = [{ id: 'vol.7-1', name: 'ラグランジュ', stock: 0, price: null }];
+  const base = { today: '2026-10-19', factor: 7.5, smallBottles: { 'vol.7-1': 47 } };
+  const item = buildStockAlerts(days, wine, base).items[0];
+  assert.deepEqual(item.warnings, ['小瓶は見積もり']);
+  assert.ok(item.notes.some((n) => n.includes('小瓶を数えて')));
+  assert.deepEqual(buildStockAlerts(days, wine, { ...base, smallBottleCounted: { 'vol.7-1': '2026-10-10' } }).items[0].warnings, []);
+  assert.deepEqual(buildStockAlerts(days, wine, { ...base, smallBottleCounted: { 'vol.7-1': '2026-09-30' } }).items[0].warnings, ['小瓶は見積もり']);
+  // ボトルがあれば出さない
+  assert.deepEqual(buildStockAlerts(days, [{ ...wine[0], stock: 2 }], base).items[0].warnings, []);
+});

@@ -226,3 +226,11 @@ test('定期外などで足す出荷は、レポートや連絡に同じ配送�
   assert.deepEqual(day('2026-10-19').additional.map((e) => [e.date, e.count]), [['2026-10-20', 8]]); // 10/20(火)着 → 10/19(月)出荷
   assert.equal(day('2026-10-19').total, 10);
 });
+
+test('定期レポートの最初の配送予定日が今日より前なら、古いレポートとして知らせる', () => {
+  const { reportFreshness } = require('../lib/shipment-schedule');
+  const rows = rowsFromCsv('次回配送予定日,定期回数\n2026/10/31 0:00,6\n2026/10/04 0:00,6\n');
+  assert.deepEqual(reportFreshness(rows, '2026-10-19'), { firstDelivery: '2026-10-04', stale: true });
+  assert.deepEqual(reportFreshness(rows, '2026-10-04'), { firstDelivery: '2026-10-04', stale: false });
+  assert.deepEqual(reportFreshness([], '2026-10-19'), { firstDelivery: null, stale: false });
+});

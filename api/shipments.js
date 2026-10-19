@@ -1,11 +1,13 @@
-const { buildSchedule, rowsFromCsv, rowsFromExtra, rowsFromAdditional, countsByDelivery, winesFromConfig, todayInJapan, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
+const { buildSchedule, rowsFromCsv, rowsFromExtra, rowsFromAdditional, countsByDelivery, winesFromConfig, todayInJapan, reportFreshness, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { buildStockAlerts } = require('../lib/stock-alerts');
-const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, smallBottlesOnHand } = require('../lib/small-bottles');
+const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, smallBottlesOnHand, countsFor } = require('../lib/small-bottles');
 const { loadLedger, saveLedger } = require('../lib/ledger-store');
 // 瓶詰め済みの小瓶を数える起点（2026-09-29 の瓶詰めを始める前の「瓶詰め使用」の累計）
 const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
 // 定期レポートに載っていない配送予定日の件数（連絡をもらった分。Vol はそのままの数字）
 const EXTRA_DELIVERIES = require('../data/extra-deliveries.json');
+// 小瓶を実際に数えた本数（数えた銘柄は、起点からの見積もりでなくこの数から数える）
+const SMALL_BOTTLE_COUNTS = require('../data/small-bottle-counts.json');
 const { loadConfig } = require('../lib/config-store');
 
 // ECforce の定期受注レポートを貼ったスプレッドシート（リンクを知っている全員が閲覧可）
@@ -92,13 +94,18 @@ module.exports = async (request, response) => {
       // 台帳が読めないと出荷した分を引けず小瓶を多く数えてしまうので、その回は小瓶を数えない
       // シートの「小瓶ロス」に記録した、起点の日〜今日のロス
       const losses = lossesFromSource(stockResult.data, start, today);
+      const additionalCounts = countsByDelivery(additionalRows);
+      const counts = countsFor(SMALL_BOTTLE_COUNTS, today,
+        (from) => consumedByPlan(ledger, from, today, FORECASTS, additionalCounts),
+        (from) => lossesFromSource(stockResult.data, from, today));
       const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
-        consumedByPlan(ledger, start, today, FORECASTS, countsByDelivery(additionalRows)), losses);
+        consumedByPlan(ledger, start, today, FORECASTS, additionalCounts), losses, counts);
 
       stock = buildStockAlerts(schedule.days, stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
         arriveDaysBefore: ARRIVE_DAYS_BEFORE, proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
         smallBottles,
+        smallBottleCounted: Object.fromEntries(Object.entries(counts).map(([id, c]) => [id, c.from])),
       });
       stock.smallBottlesSince = ledger.loadFailed ? null : start;
       stock.smallBottlesUnavailable = Boolean(ledger.loadFailed);
@@ -111,6 +118,8 @@ module.exports = async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     return response.status(200).json({
       ...schedule,
+      // 定期レポートを貼り替えていないと、出荷件数が実際とずれる（画面に警告を出す）
+      report: reportFreshness(reportRows, today),
       stock,
       stockError,
       source: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=${SHEET_GID}`,

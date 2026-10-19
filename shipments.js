@@ -442,6 +442,10 @@
     $('ship-status').textContent = `${time} 時点・今日 ${md(result.today)}(${wd(result.today)}) 基準${skipped}${note}`;
     $('ship-source').href = result.source;
     $('ship-source').hidden = false;
+    // 定期レポートを貼り替えていないと件数がずれていく
+    const report = result.report || {};
+    $('report-warn').innerHTML = report.stale ? `⚠ 定期レポートが古いです（${md(report.firstDelivery)}着から）。<a href="${esc(result.source)}" target="_blank" rel="noopener">最新を貼ってください</a>` : '';
+    $('report-warn').hidden = !report.stale;
     renderSummary();
     renderStock();
     renderWeeks();

@@ -173,3 +173,21 @@ test('定期外などで足した出荷も、出荷日が過ぎたら小瓶を�
     ['2026-09-30', 'Vol.9', '連絡', 5],
   ]);
 });
+
+test('小瓶を数えた銘柄は、見積もりでなく 数えた本数＋そのあとの瓶詰め−数えた日からの出荷−ロス で数える', () => {
+  const { countsFor } = require('../lib/small-bottles');
+  const baseline = { bottledTotal: { 'vol.7-1': 68, 'vol.7-2': 62 } };
+  // 2026-10-19 Vol.7：見積もりでは 18本×7.5−88件＝47本 あるはずが、実物は3本だった
+  const data = { counts: { 'vol.7-1': { from: '2026-10-19', small: 3, bottledTotal: 86 }, 'vol.9-1': { from: '2026-11-01', small: 9, bottledTotal: 0 } } };
+  const usedFrom = (from) => (from === '2026-10-19' ? { 'Vol.7': 9 } : {});
+  const lostFrom = () => ({ 'vol.7-1': 1 });
+  const counts = countsFor(data, '2026-10-21', usedFrom, lostFrom);
+  // 今日より先に数えた分は使わない
+  assert.deepEqual(Object.keys(counts), ['vol.7-1']);
+  assert.deepEqual(counts['vol.7-1'], { from: '2026-10-19', small: 3, bottledTotal: 86, used: 9, lost: 1 });
+  const items = [{ id: 'vol.7-1', bottled: 88 }, { id: 'vol.7-2', bottled: 75 }];
+  // vol.7-1：3 + 2本×7.5 − 9 − 1 = 8。vol.7-2 は数えていないので見積もり（13本×7.5 − 88 = 9）
+  assert.deepEqual(smallBottlesOnHand(items, baseline, 7.5, { 'Vol.7': 88 }, {}, counts), { 'vol.7-1': 8, 'vol.7-2': 9 });
+  // 数えた日から出荷が多ければ 0
+  assert.deepEqual(smallBottlesOnHand([{ id: 'vol.7-1', bottled: 86 }], baseline, 7.5, {}, {}, counts), {});
+});
