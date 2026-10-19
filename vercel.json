@@ -1,19 +1,5 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/shipments",
-      "destination": "/shipments.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/admin.html"
-    },
-    {
-      "source": "/",
-      "destination": "/index.html"
-    }
-  ],
   "crons": [
     {
       "path": "/api/shipments",
@@ -27,5 +13,11 @@
     "api/history.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "https://hw-app-sepia.vercel.app/$1"
+    }
+  ]
 }
