@@ -183,14 +183,16 @@
     // 内訳：出荷1件で小瓶1本を使うので、小瓶の本数にそろえて比べる
     const period = item.forecast ? '今後1か月の出荷（見込み）' : `${md(s.horizonEnd)}(${wd(s.horizonEnd)})までの出荷`;
     const stockSmall = Math.max(item.stock, 0) * factor;
-    const shortSmall = Math.max(0, Math.ceil(item.shipments - item.smallBottles - stockSmall - 1e-9));
+    const incomingSmall = (item.incoming || 0) * factor;
+    const shortSmall = Math.max(0, Math.ceil(item.shipments - item.smallBottles - stockSmall - incomingSmall - 1e-9));
+    const arrivalText = (item.arrivals || []).map((a) => `${md(a.date)}(${wd(a.date)}) ${num(a.bottles)}本`).join('・');
     const math = item.shipments ? `<dl class="stock-math">
         <div><dt>${period}</dt><dd>${num(item.shipments)}件 → 小瓶 <b>${num(item.shipments)}本</b></dd></div>
-        <div><dt>瓶詰め済みの小瓶</dt><dd><b>${num(item.smallBottles)}本</b>${item.plan === 'PRO' ? '（PRO は数えていません）' : ''}</dd></div>
-        <div><dt>ワインボトルの在庫</dt><dd><b>${num(item.stock)}本</b>（小瓶 ${num(stockSmall)}本分）</dd></div>
+        <div><dt>ワインボトルの残り</dt><dd><b>${num(item.stock)}本</b>（小瓶 ${num(stockSmall)}本分）${item.smallBottles ? `＋端数 小瓶${num(item.smallBottles)}本` : ''}</dd></div>
+        ${item.incoming ? `<div><dt>届く予定</dt><dd><b>${num(item.incoming)}本</b>（${arrivalText}）</dd></div>` : ''}
         <div class="${shortSmall ? 'is-short' : 'is-enough'}"><dt>${shortSmall ? '足りない分' : '差し引き'}</dt><dd>${shortSmall
           ? `小瓶 <b>${num(shortSmall)}本</b> ＝ ボトル <b>${num(item.shortage)}本</b>`
-          : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall - item.shipments))}本あまる`}</dd></div>
+          : `小瓶 ${num(Math.floor(item.smallBottles + stockSmall + incomingSmall - item.shipments))}本あまる`}</dd></div>
       </dl>` : `<p class="stock-math-none">ワインボトルの在庫 ${num(item.stock)}本</p>`;
     const open = openMore.has(item.id);
     const more = `<div class="stock-more"${open ? '' : ' hidden'}>
@@ -231,7 +233,8 @@
     const s = data.stock;
     const loadedAt = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(data.fetchedAt));
     $('stock-meta').innerHTML = `在庫 ${loadedAt} 時点・${s.horizonEnd ? `${md(s.horizonEnd)}(${wd(s.horizonEnd)})` : '-'}までの出荷で判定・本数はワインボトル（750ml）・<a href="${esc(s.source)}" target="_blank" rel="noopener">在庫のシート</a>`
-      + (s.smallBottlesUnavailable ? '<br><b>出荷の記録を読めず、今回は瓶詰め済みの小瓶を数えていません</b>' : '');
+      + (s.countedOn ? `<br>在庫は${md(s.countedOn)}の実数から（小瓶は数えない）` : '')
+      + (s.smallBottlesUnavailable ? '<br><b>出荷の記録を読めず、今回はシートの現在在庫で出しています</b>' : '');
     const badge = $('alert-badge');
     badge.textContent = s.counts.urgent ? `至急${s.counts.urgent}` : s.counts.soon ? `今週${s.counts.soon}` : '';
     badge.classList.toggle('is-urgent', !!s.counts.urgent);

@@ -21,8 +21,8 @@ const data = {
 
 test('瓶詰め記録のスプレッドシートの「商品マスタ・在庫」を、発注アラートの形にする', () => {
   assert.deepEqual(stockItemsFromSource(data), [
-    { id: 'vol.8-4', name: 'ウォルファー・エステイト カヤ', stock: 36, price: null, bottled: 37 },
-    { id: 'Pro.1', name: '', stock: 108, price: null, bottled: 0 },
+    { id: 'vol.8-4', name: 'ウォルファー・エステイト カヤ', stock: 36, price: null, bottled: 37, sold: 0 },
+    { id: 'Pro.1', name: '', stock: 108, price: null, bottled: 0, sold: 0 },
   ]);
 });
 

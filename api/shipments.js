@@ -1,13 +1,16 @@
 const { buildSchedule, rowsFromCsv, rowsFromExtra, rowsFromAdditional, countsByDelivery, winesFromConfig, todayInJapan, reportFreshness, DEFAULT_FACTOR } = require('../lib/shipment-schedule');
 const { buildStockAlerts } = require('../lib/stock-alerts');
-const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan, smallBottlesOnHand, countsFor } = require('../lib/small-bottles');
+const { recordShipments, fillEstimates, rowsFromLedger, consumedByPlan } = require('../lib/small-bottles');
+const { applyStockCount } = require('../lib/stock-count');
+const { arrivalsFromSource } = require('../lib/arrivals');
+const { loadOverrides } = require('../lib/arrival-overrides');
 const { loadLedger, saveLedger } = require('../lib/ledger-store');
 // 瓶詰め済みの小瓶を数える起点（2026-09-29 の瓶詰めを始める前の「瓶詰め使用」の累計）
 const SMALL_BOTTLE_BASELINE = require('../data/small-bottle-baseline.json');
 // 定期レポートに載っていない配送予定日の件数（連絡をもらった分。Vol はそのままの数字）
 const EXTRA_DELIVERIES = require('../data/extra-deliveries.json');
-// 小瓶を実際に数えた本数（数えた銘柄は、起点からの見積もりでなくこの数から数える）
-const SMALL_BOTTLE_COUNTS = require('../data/small-bottle-counts.json');
+// ワインボトルの実数（商品マスタ・在庫 H列）。発注アラートはこの数から数える（lib/stock-count.js）
+const STOCK_COUNT = require('../data/stock-count.json');
 const { loadConfig } = require('../lib/config-store');
 
 // ECforce の定期受注レポートを貼ったスプレッドシート（リンクを知っている全員が閲覧可）
@@ -17,7 +20,7 @@ const SHEET_GID = '1128007068';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
 // ワインの現在庫と小瓶ロス：瓶詰め・入荷・在庫管理の「商品マスタ・在庫」「小瓶ロス」（lib/stock-source.js）
-const { loadStockSource, stockItemsFromSource, lossesFromSource, STOCK_SHEET_URL } = require('../lib/stock-source');
+const { loadStockSource, stockItemsFromSource, STOCK_SHEET_URL } = require('../lib/stock-source');
 
 const LEAD_DAYS = 2; // 発注してから届くまで
 const LOW_STOCK = 6; // この本数以下なら知らせる
@@ -50,12 +53,13 @@ module.exports = async (request, response) => {
     return response.status(405).json({ error: 'GETで取得してください。' });
   }
   try {
-    const [scheduleCsv, stockResult, settings, ledger] = await Promise.all([
+    const [scheduleCsv, stockResult, settings, ledger, overrides] = await Promise.all([
       fetchCsv(SHEET_URL),
       // 在庫と小瓶ロスは瓶詰め記録のスプレッドシートから直接読む（入荷を記録した直後でも最新）
       loadStockSource().then((data) => ({ data }), (error) => ({ error })),
       loadWineSettings(),
       loadLedger(),
+      loadOverrides().catch(() => ({})),
     ]);
     // 「これからの1週間」の起点は日本時間の今日。確認用に ?today=YYYY-MM-DD で差し替えられる
     const requested = String((request.query && request.query.today) || '');
@@ -90,24 +94,23 @@ module.exports = async (request, response) => {
       if (stockResult.error) throw stockResult.error;
       const stockItems = stockItemsFromSource(stockResult.data);
 
-      // 瓶詰め済みでまだ出荷していない小瓶も出荷に回す（起点の日〜昨日に出荷した分を台帳から引く）。
-      // 台帳が読めないと出荷した分を引けず小瓶を多く数えてしまうので、その回は小瓶を数えない
-      // シートの「小瓶ロス」に記録した、起点の日〜今日のロス
-      const losses = lossesFromSource(stockResult.data, start, today);
+      // 在庫はボトルの実数（H列）から数える。瓶詰め済みの小瓶は見積もらない（実物より多くなりやすいため）。
+      // 数えた日〜昨日の出荷を台帳から引くので、台帳が読めない回は実数を使わず「現在在庫」で出す
       const additionalCounts = countsByDelivery(additionalRows);
-      const counts = countsFor(SMALL_BOTTLE_COUNTS, today,
-        (from) => consumedByPlan(ledger, from, today, FORECASTS, additionalCounts),
-        (from) => lossesFromSource(stockResult.data, from, today));
-      const smallBottles = ledger.loadFailed ? {} : smallBottlesOnHand(stockItems, SMALL_BOTTLE_BASELINE, schedule.factor,
-        consumedByPlan(ledger, start, today, FORECASTS, additionalCounts), losses, counts);
+      const counted = ledger.loadFailed ? null : applyStockCount(stockItems, STOCK_COUNT, {
+        today,
+        factor: schedule.factor,
+        shipped: consumedByPlan(ledger, STOCK_COUNT.date, today, FORECASTS, additionalCounts),
+        arrivals: arrivalsFromSource(stockResult.data, overrides),
+      });
 
-      stock = buildStockAlerts(schedule.days, stockItems, {
+      stock = buildStockAlerts(schedule.days, counted ? counted.items : stockItems, {
         today, factor: schedule.factor, leadDays: LEAD_DAYS, lowStock: LOW_STOCK,
         arriveDaysBefore: ARRIVE_DAYS_BEFORE, proArriveDaysBefore: PRO_ARRIVE_DAYS_BEFORE, forecasts: FORECASTS,
-        smallBottles,
-        smallBottleCounted: Object.fromEntries(Object.entries(counts).map(([id, c]) => [id, c.from])),
+        smallBottles: counted ? counted.smallBottles : {},
+        arrivals: counted ? counted.arrivals : {},
       });
-      stock.smallBottlesSince = ledger.loadFailed ? null : start;
+      stock.countedOn = counted ? counted.countedOn : null;
       stock.smallBottlesUnavailable = Boolean(ledger.loadFailed);
       stock.source = STOCK_SHEET_URL;
     } catch (error) {
